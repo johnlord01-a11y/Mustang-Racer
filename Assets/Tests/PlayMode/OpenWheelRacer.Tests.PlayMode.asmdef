@@ -1,0 +1,28 @@
+{
+    "name": "OpenWheelRacer.Tests.PlayMode",
+    "rootNamespace": "OpenWheelRacer.Tests.PlayMode",
+    "references": [
+        "OpenWheelRacer.Runtime",
+        "Unity.InputSystem",
+        "UnityEngine.TestRunner"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.test-framework",
+            "expression": "1.0.31",
+            "define": "UNITY_INCLUDE_TESTS"
+        }
+    ],
+    "noEngineReferences": false
+}
