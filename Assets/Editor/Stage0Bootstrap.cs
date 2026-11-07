@@ -9,16 +9,41 @@ using UnityEngine.SceneManagement;
 namespace OpenWheelRacer.EditorTools
 {
     /// <summary>
-    /// Stage 0 foundation bootstrap + verifier. Run headless:
-    /// Unity -batchmode -quit -projectPath &lt;project&gt;
-    ///   -execute-method "OpenWheelRacer.EditorTools.Stage0Bootstrap::Run"
+    /// Stage 0 foundation bootstrap + verifier. Run headless by passing the
+    /// -owr-run-stage0 flag; it self-exits with code 0 (pass) or 2 (fail):
+    /// Unity -batchmode -nographics -projectPath &lt;project&gt; -owr-run-stage0
     /// Creates the four scenes (empty), verifies the Input Actions asset imports
     /// with Throttle/Brake/Steer/Handbrake/Reset, and reopens each scene to prove
     /// it parses. Logs "[Stage0] RESULT: PASS" or "RESULT: FAIL (n)".
     /// </summary>
     public static class Stage0Bootstrap
     {
+        private const string RequestFlag = "-owr-run-stage0";
         private const string InputAssetPath = "Assets/Input/OpenWheelRacer.InputActions.inputactions";
+
+        [InitializeOnLoadMethod]
+        private static void RunIfRequested()
+        {
+            foreach (var arg in Environment.GetCommandLineArgs())
+            {
+                if (arg == RequestFlag)
+                {
+                    EditorApplication.delayCall += ExecuteAndExit;
+                    return;
+                }
+            }
+        }
+
+        private static void ExecuteAndExit()
+        {
+            int failures = Run();
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Debug.Log(failures == 0
+                ? "[Stage0] RESULT: PASS"
+                : $"[Stage0] RESULT: FAIL ({failures} problem(s))");
+            EditorApplication.Exit(failures == 0 ? 0 : 2);
+        }
 
         private static readonly string[] ScenePaths =
         {
@@ -28,7 +53,7 @@ namespace OpenWheelRacer.EditorTools
             "Assets/Scenes/Sandbox.unity",
         };
 
-        public static void Run()
+        public static int Run()
         {
             int failures = 0;
 
@@ -115,12 +140,7 @@ namespace OpenWheelRacer.EditorTools
                 }
             }
 
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
-
-            Debug.Log(failures == 0
-                ? "[Stage0] RESULT: PASS"
-                : $"[Stage0] RESULT: FAIL ({failures} problem(s))");
+            return failures;
         }
     }
 }
