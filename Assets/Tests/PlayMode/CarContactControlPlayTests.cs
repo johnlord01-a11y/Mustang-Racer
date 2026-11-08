@@ -93,6 +93,9 @@ namespace OpenWheelRacer.Tests.PlayMode
                       $"targetMass={tMass:F0} moverMass={mMass:F0} targetCoM={tb.centerOfMass} targetY={tStart.y:F2} solverIter={tb.solverIterations}");
             if (moverIsCar && contact >= 0 && vBefore < 12f) Assert.Inconclusive($"{label}: impact only {vBefore:F2} m/s, fixture invalid");
             Assert.GreaterOrEqual(contact, 0, $"{label}: target never started moving");
+            // Ctl4 (default car-into-car): same 15%-of-impact-speed rule as CarContactPlayTests.
+            if (moverIsCar && targetIsCar && configureTarget == null)
+                Assert.Greater(tPeak, 0.15f * vBefore, $"{label}: free-rolling target only reached {tPeak:F2} m/s from a {vBefore:F2} m/s hit");
         }
 
         [UnityTest] public IEnumerator Ctl1_BoxIntoBox() { yield return Run("box->box", false, false, null); }
