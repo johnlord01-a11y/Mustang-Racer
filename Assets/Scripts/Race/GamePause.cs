@@ -32,13 +32,22 @@ namespace OpenWheelRacer.Race
         /// <summary>Panel buttons.</summary>
         public const string QuitLabel = "Quit";
 
+        /// <summary>Panel button that opens the settings panel.</summary>
+        public const string SettingsLabel = "Settings";
+
+        /// <summary>Settings panel buttons.</summary>
+        public const string BackLabel = "Back";
+
         private const float PanelWidth = 320f;
-        private const float PanelHeight = 266f;
+        private const float PanelHeight = 324f;
         private const float ButtonHeight = 46f;
         private const float ButtonMargin = 36f;
 
         private GUIStyle _titleStyle;
         private GUISkin _skin;
+
+        /// <summary>True while the settings panel replaces the pause buttons. Esc still leaves it.</summary>
+        private bool _showingSettings;
 
         /// <summary>Backing store of <see cref="IsPaused"/>; never set except through it.</summary>
         private static bool _paused;
@@ -78,7 +87,16 @@ namespace OpenWheelRacer.Race
             Keyboard keyboard = Keyboard.current;
             if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame)
             {
-                TogglePause();
+                // Esc out of the settings panel means back to the menu, not unpause;
+                // the clock was never touched by opening settings, so nothing is restored.
+                if (_showingSettings)
+                {
+                    _showingSettings = false;
+                }
+                else
+                {
+                    TogglePause();
+                }
             }
         }
 
@@ -93,6 +111,12 @@ namespace OpenWheelRacer.Race
             float height = Mathf.Min(PanelHeight, Screen.height);
             var panel = new Rect((Screen.width - width) * 0.5f, (Screen.height - height) * 0.5f,
                 width, height);
+
+            if (_showingSettings)
+            {
+                DrawSettings(panel, width);
+                return;
+            }
 
             GUI.Box(panel, GUIContent.none);
             GUI.Label(new Rect(panel.xMin, panel.yMin + 20f, width, 40f), "PAUSED", Title());
@@ -114,6 +138,53 @@ namespace OpenWheelRacer.Race
             if (GUI.Button(quit, QuitLabel))
             {
                 QuitGame();
+            }
+
+            var settings = new Rect(quit.x, quit.yMax + 12f, quit.width, ButtonHeight);
+            if (GUI.Button(settings, SettingsLabel))
+            {
+                _showingSettings = true;
+            }
+        }
+
+        /// <summary>
+        /// The small settings panel: a quality level that cycles through the build's own
+        /// levels and a VSync switch, both written straight through <see cref="GameSettings"/>
+        /// so a change applies now and is there at the next boot. Pause itself is
+        /// untouched — the clock is already stopped by the menu, and nothing in here
+        /// reaches for it.
+        /// </summary>
+        private void DrawSettings(Rect panel, float width)
+        {
+            GUI.Box(panel, GUIContent.none);
+            GUI.Label(new Rect(panel.xMin, panel.yMin + 20f, width, 40f), "SETTINGS", Title());
+
+            var row = new Rect(panel.xMin + ButtonMargin, panel.yMin + 82f,
+                width - 2f * ButtonMargin, ButtonHeight);
+
+            string[] names = QualitySettings.names;
+            string qualityName = names != null && names.Length > 0
+                ? names[Mathf.Clamp(GameSettings.QualityIndex, 0, names.Length - 1)]
+                : "none";
+            if (GUI.Button(row, $"Quality: {qualityName}"))
+            {
+                if (names != null && names.Length > 0)
+                {
+                    int next = (GameSettings.QualityIndex + 1) % names.Length;
+                    GameSettings.SetQuality(next);
+                }
+            }
+
+            var vsync = new Rect(row.x, row.yMax + 12f, row.width, ButtonHeight);
+            if (GUI.Button(vsync, $"VSync: {(GameSettings.VSync ? "On" : "Off")}"))
+            {
+                GameSettings.SetVSync(!GameSettings.VSync);
+            }
+
+            var back = new Rect(vsync.x, vsync.yMax + 12f, vsync.width, ButtonHeight);
+            if (GUI.Button(back, BackLabel))
+            {
+                _showingSettings = false;
             }
         }
 
