@@ -134,10 +134,25 @@ namespace OpenWheelRacer.Race
             _text.Append("RACE   ").Append(TimeFormat.Format(_session != null && _session.Flow != null ? _session.Flow.RaceTime : 0f)).Append('\n');
             _text.Append("LAP T  ").Append(TimeFormat.Format(counter.CurrentLapTime)).Append('\n');
             _text.Append("LAST   ").Append(TimeFormat.Format(counter.LastLapTime)).Append('\n');
-            _text.Append("BEST   ").Append(TimeFormat.Format(counter.BestLapTime)).Append('\n');
+            _text.Append("BEST   ").Append(TimeFormat.Format(StoredOrSessionBest(counter))).Append('\n');
             _text.Append("SPEED  ").Append(Mathf.RoundToInt(speedKmh)).Append(" km/h\n\n");
             _text.Append(HelpLine);
             return _text.ToString();
+        }
+
+        /// <summary>
+        /// The BEST line reads the persistent track record when there is one, falling
+        /// back to the session's own best before the store has been written; the
+        /// sentinel (no record, no lap yet) renders as <see cref="TimeFormat.Invalid"/>.
+        /// </summary>
+        private static float StoredOrSessionBest(LapCounter counter)
+        {
+            if (BestLapStore.TryGet(TrackBuilder.TrackId, out float stored))
+            {
+                return stored;
+            }
+
+            return counter.BestLapTime;
         }
 
         /// <summary>

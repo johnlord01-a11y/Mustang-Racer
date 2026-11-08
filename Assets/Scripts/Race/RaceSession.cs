@@ -184,6 +184,12 @@ namespace OpenWheelRacer.Race
             _flow.Register(PlayerId, true);
             LapCounter playerLaps = _counter;
             playerLaps.LapCompleted += _ => _flow.OnLapCompleted(PlayerId, playerLaps.CompletedLaps);
+
+            // A counted lap is also the track record candidate: banked straight away so a
+            // crash on the next lap cannot lose it, and read back by the HUD's BEST line.
+            string trackId = TrackBuilder.TrackId;
+            playerLaps.LapCompleted += lapSeconds => BestLapStore.Submit(trackId, lapSeconds);
+
             ApplyDriveGates();
 
             // The odometer is based on wherever the car has been stood — the grid, in a race being

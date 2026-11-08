@@ -30,6 +30,9 @@ namespace OpenWheelRacer.Race
     [DisallowMultipleComponent]
     public sealed class TrackBuilder : MonoBehaviour
     {
+        /// <summary>Identity of this layout in persistent records (see <see cref="BestLapStore"/>).</summary>
+        public const string TrackId = "Track_Proto";
+
         // ---- primitive dimensions ----------------------------------------------------
 
         /// <summary>Vertical size of a road piece; the road lies 0.1 m proud of the ground.</summary>
