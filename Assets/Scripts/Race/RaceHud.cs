@@ -25,11 +25,31 @@ namespace OpenWheelRacer.Race
         public const string HelpLine =
             "W throttle  S brake/reverse  A/D steer\nSpace handbrake  R reset  C view  Esc pause";
 
-        private const float PanelX = 16f;
-        private const float PanelY = 16f;
-        private const float PanelWidth = 480f;
-        private const float PanelHeight = 230f;
-        private const int FontSize = 17;
+        // Base sizes are authored for a 1080p screen and multiplied by HudScale, so the
+        // panel keeps the same proportion of the screen at any resolution.
+        public const float PanelX = 10f;
+        public const float PanelY = 10f;
+        public const float PanelWidth = 288f;   // 480 * 0.6
+        public const float PanelHeight = 138f;  // 230 * 0.6
+        public const int FontSize = 10;         // 17 * 0.6 rounded down
+
+        /// <summary>Countdown glyph height at 1080p (was 72).</summary>
+        public const int CountdownFontSize = 48;
+
+        /// <summary>Results panel size and button size at 1080p (were 340x240 and 100x30).</summary>
+        public const float ResultsWidth = 204f;
+        public const float ResultsHeight = 144f;
+        public const float ButtonWidth = 60f;
+        public const float ButtonHeight = 18f;
+
+        public const float MinScale = 0.6f;
+        public const float MaxScale = 1.5f;
+
+        /// <summary>Resolution scale: Screen.height over 1080, clamped to a sane range.</summary>
+        public static float HudScale()
+        {
+            return Mathf.Clamp(Screen.height / 1080f, MinScale, MaxScale);
+        }
 
         /// <summary>Metres per second to kilometres per hour — the unit the readout is in.</summary>
         private const float KmhPerMs = 3.6f;
@@ -54,7 +74,8 @@ namespace OpenWheelRacer.Race
                 return; // Before RaceSession.Init there is nothing worth drawing.
             }
 
-            GUI.Label(new Rect(PanelX, PanelY, PanelWidth, PanelHeight),
+            float s = HudScale();
+            GUI.Label(new Rect(PanelX * s, PanelY * s, PanelWidth * s, PanelHeight * s),
                 BuildReadout(counter, _session.Car, _session.Opponents,
                     _session.PlayerProgress.Value),
                 Style());
@@ -70,10 +91,11 @@ namespace OpenWheelRacer.Race
             {
                 var big = new GUIStyle(GUI.skin.label)
                 {
-                    fontSize = 72, alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold
+                    fontSize = Mathf.RoundToInt(CountdownFontSize * s),
+                    alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold
                 };
                 big.normal.textColor = Color.yellow;
-                GUI.Label(new Rect(0f, Screen.height * 0.3f, Screen.width, 120f), countdown, big);
+                GUI.Label(new Rect(0f, Screen.height * 0.3f, Screen.width, 80f * s), countdown, big);
             }
 
             if (flow.PlayerFinished)
@@ -84,9 +106,11 @@ namespace OpenWheelRacer.Race
                     results.Append(line.Label).Append('\n');
                 }
 
-                var panel = new Rect(Screen.width * 0.5f - 170f, Screen.height * 0.22f, 340f, 240f);
+                var panel = new Rect(Screen.width * 0.5f - ResultsWidth * s * 0.5f,
+                    Screen.height * 0.22f, ResultsWidth * s, ResultsHeight * s);
                 GUI.Box(panel, results.ToString());
-                if (GUI.Button(new Rect(panel.x + 120f, panel.yMax - 40f, 100f, 30f), "Restart"))
+                if (GUI.Button(new Rect(panel.x + (ResultsWidth - ButtonWidth) * 0.5f * s,
+                        panel.yMax - (ButtonHeight + 12f) * s, ButtonWidth * s, ButtonHeight * s), "Restart"))
                 {
                     GamePause.RestartActiveScene();
                 }
@@ -181,14 +205,16 @@ namespace OpenWheelRacer.Race
                 _skin = GUI.skin;
                 _style = new GUIStyle(GUI.skin.box)
                 {
-                    fontSize = FontSize,
+                    fontSize = Mathf.Max(1, Mathf.RoundToInt(FontSize * HudScale())),
                     alignment = TextAnchor.UpperLeft,
                     wordWrap = false,
                     richText = false,
                     stretchWidth = false,
                     stretchHeight = false
                 };
-                _style.padding = new RectOffset(14, 14, 12, 12);
+                int padX = Mathf.Max(1, Mathf.RoundToInt(14 * HudScale()));
+                int padY = Mathf.Max(1, Mathf.RoundToInt(12 * HudScale()));
+                _style.padding = new RectOffset(padX, padX, padY, padY);
                 _style.normal.textColor = Color.white;
                 _style.onNormal.textColor = Color.white;
             }
