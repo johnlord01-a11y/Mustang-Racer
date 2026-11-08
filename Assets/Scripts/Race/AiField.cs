@@ -153,6 +153,13 @@ namespace OpenWheelRacer.Race
                 car.ArmSpawnPoint();
 
                 AiDriver driver = chassis.AddComponent<AiDriver>();
+
+                // A slightly different pace per opponent, fastest first: the reference driver
+                // drives the tuning exactly, the ones behind it trail it a few percent so the
+                // field spreads out down a straight instead of arriving as one three-car train.
+                int paceSlot = i % AIDriverProfile.DefaultFieldPaceScales.Length;
+                driver.Profile = AIDriverProfile.CreatePaced(AIDriverProfile.DefaultFieldPaceScales[paceSlot]);
+
                 driver.Init(track, car, name, color, lane, material);
 
                 drivers.Add(driver);

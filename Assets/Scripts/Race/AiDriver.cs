@@ -53,6 +53,10 @@ namespace OpenWheelRacer.Race
     public sealed class AiDriver : MonoBehaviour
     {
         // ---- the driving numbers -------------------------------------------------------
+        //
+        // These are the reference values: an AiDriver with no Profile drives exactly to
+        // them, and AIDriverProfile.CreateDefault starts from the same numbers (asserted
+        // by AIDriverProfileTests). A profile asset overrides them per opponent.
 
         /// <summary>Speed aimed for where the centreline is straight, m/s.</summary>
         public const float StraightSpeedMs = 26f;
@@ -151,6 +155,32 @@ namespace OpenWheelRacer.Race
         private const float CentredSteer = 0.15f;
 
         /// <summary>
+        /// The driving knobs this car obeys: the assigned <see cref="Profile"/> when there is
+        /// one, otherwise a single shared default instance holding the constants above.
+        /// </summary>
+        private AIDriverProfile _profile;
+
+        private static AIDriverProfile _defaultProfile;
+
+        private AIDriverProfile Settings
+        {
+            get
+            {
+                if (Profile != null)
+                {
+                    return Profile;
+                }
+
+                if (_defaultProfile == null)
+                {
+                    _defaultProfile = AIDriverProfile.CreateDefault();
+                }
+
+                return _defaultProfile;
+            }
+        }
+
+        /// <summary>
         /// Sample-index search window either side of the last nearest sample. Twelve samples is 24 m of
         /// track, and the fastest thing this car does covers a third of that in one frame — enough to
         /// cover a lap of the search between two frames while still being nothing on a plain miss,
@@ -222,6 +252,14 @@ namespace OpenWheelRacer.Race
 
         /// <summary>Display name of this opponent, <c>AI_1</c> and up as <see cref="AiField"/> spawns them.</summary>
         public string Name { get; private set; } = "AI";
+
+        /// <summary>
+        /// The driving character of this opponent: pace and look-ahead knobs. Null means
+        /// the default profile — the constants above, so an unassigned driver drives exactly
+        /// as it did before profiles existed. Assign before <see cref="Init"/>; <see cref="AiField"/>
+        /// hands each opponent a slightly different one so the field spreads out.
+        /// </summary>
+        public AIDriverProfile Profile { get; set; }
 
         /// <summary>The colour this opponent is painted, for a timing sheet or a legend that wants one.</summary>
         public UnityEngine.Color Color { get; private set; } = UnityEngine.Color.white;
@@ -426,9 +464,11 @@ namespace OpenWheelRacer.Race
         private void Drive(Vector3 position)
         {
             float speed = _car.CurrentSpeedMs;
+            AIDriverProfile settings = Settings;
 
             float lookahead = Mathf.Clamp(
-                LookaheadBaseM + LookaheadPerMs * speed, LookaheadMinM, LookaheadMaxM);
+                settings.LookaheadBaseM + settings.LookaheadPerMs * speed,
+                settings.LookaheadMinM, settings.LookaheadMaxM);
 
             Pose aim = TrackLayout.PoseAt(_trackDistance + lookahead);
             Vector3 target = aim.position + aim.right * _laneOffset - position;
@@ -442,14 +482,14 @@ namespace OpenWheelRacer.Race
 
             if (error > 0f)
             {
-                throttle = Mathf.Clamp01(error / ThrottleBandMs);
+                throttle = Mathf.Clamp01(error / settings.ThrottleBandMs);
             }
             else if (_car.ForwardSpeed > BrakeSpeedFloorMs)
             {
                 // Braked only from above the speed the reverse engages at: at or under it the brake key
                 // is the reverse, and a P controller that had not thought that through would put the
                 // car on its way back down the straight the moment it was caught napping on the grid.
-                brake = Mathf.Clamp01(-error / BrakeBandMs);
+                brake = Mathf.Clamp01(-error / settings.BrakeBandMs);
             }
 
             _lastSteer = steer;
@@ -495,9 +535,10 @@ namespace OpenWheelRacer.Race
         /// </summary>
         private float SpeedLimitAhead()
         {
-            float limit = StraightSpeedMs;
+            AIDriverProfile settings = Settings;
+            float limit = settings.StraightSpeedMs * settings.PaceScale;
 
-            for (float ahead = 0f; ahead <= BrakingHorizonM; ahead += BrakingStepM)
+            for (float ahead = 0f; ahead <= settings.BrakingHorizonM; ahead += settings.BrakingStepM)
             {
                 limit = Mathf.Min(limit, LimitAt(_trackDistance + ahead));
             }
@@ -512,8 +553,9 @@ namespace OpenWheelRacer.Race
         /// no assumption about this particular oval, and a circuit of hand-laid corners would read the
         /// same way.
         /// </summary>
-        private static float LimitAt(float distance)
+        private float LimitAt(float distance)
         {
+            AIDriverProfile settings = Settings;
             Vector3 here = TrackLayout.PoseAt(distance).forward;
             Vector3 ahead = TrackLayout.PoseAt(distance + CurvatureProbeM).forward;
 
@@ -523,11 +565,12 @@ namespace OpenWheelRacer.Race
 
             if (curvature < StraightCurvature)
             {
-                return StraightSpeedMs;
+                return settings.StraightSpeedMs * settings.PaceScale;
             }
 
-            return Mathf.Min(StraightSpeedMs,
-                Mathf.Sqrt(CornerLateralAccelMs2 / curvature) * CornerSpeedScale);
+            return Mathf.Min(settings.StraightSpeedMs,
+                Mathf.Sqrt(settings.CornerLateralAccelMs2 / curvature) * settings.CornerSpeedScale)
+                * settings.PaceScale;
         }
 
         // ---- getting out of trouble ----------------------------------------------------
