@@ -290,6 +290,92 @@ namespace OpenWheelRacer.Tests.PlayMode
         }
 
         /// <summary>
+        /// A shallow glance: the car is aimed 10° at a long barrier (5–15° from parallel-to-path)
+        /// and brought up to about 35 m/s so it slides along the face rather than stopping in it.
+        /// It must not tunnel through, must keep meaningful forward speed, and must stay drivable.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Shallow_10deg_WallGlance_SlidesWithoutTunneling()
+        {
+            const float innerFaceX = 12f;
+            const float thickness = 1f;
+            const float glanceYawDegrees = 10f;
+            const float glanceSpeedMs = 35f;
+            const float minRetainedSpeedMs = 14f;
+            const float observeSeconds = 1.5f;
+            const float farFaceX = innerFaceX + thickness;
+
+            BuildOpenPlaneStage();
+
+            _wall = new GameObject(WallName);
+            _wall.transform.position = new Vector3(innerFaceX + thickness * 0.5f, WallSize.y * 0.5f, 60f);
+            _wall.transform.rotation = Quaternion.identity;
+            _wallCollider = _wall.AddComponent<BoxCollider>();
+            _wallCollider.size = new Vector3(thickness, 3f, 160f);
+
+            yield return FixedSteps(SettleSeconds);
+
+            Vector3 pos = _car.PhysicsBody.position;
+            Quaternion heading = Quaternion.Euler(0f, glanceYawDegrees, 0f);
+            _carObject.transform.SetPositionAndRotation(pos, heading);
+            _car.PhysicsBody.position = pos;
+            _car.PhysicsBody.rotation = heading;
+            _car.ArmSpawnPoint();
+            _car.SetTestControls(0f, 0f, 0f);
+            yield return new WaitForFixedUpdate();
+
+            yield return AccelerateTo(glanceSpeedMs);
+            Assert.GreaterOrEqual(_approachSpeedMs, 30f,
+                $"never reached glance speed, only {_approachSpeedMs:F2} m/s in {_approachSeconds:F2} s " +
+                $"(already on wall={NoseOnWall()}, x={_car.PhysicsBody.position.x:F2})");
+
+            float untilContact = 0f;
+            while (untilContact < 5f && !NoseOnWall())
+            {
+                _car.SetTestControls(FullInput, 0f, 0f);
+                yield return new WaitForFixedUpdate();
+                untilContact += FixedDelta();
+            }
+
+            Assert.IsTrue(NoseOnWall(),
+                $"never touched the wall after {untilContact:F2} s (x={_car.PhysicsBody.position.x:F2}, " +
+                $"z={_car.PhysicsBody.position.z:F2}, first={_probe.FirstColliderName})");
+
+            float speedAtContact = _car.ForwardSpeed;
+            float maxX = _car.PhysicsBody.position.x;
+            float maxFwd = speedAtContact;
+            float observe = 0f;
+            bool tunneled = false;
+            bool nan = false;
+            _car.SetTestControls(FullInput, 0f, 0f);
+            while (observe < observeSeconds)
+            {
+                yield return new WaitForFixedUpdate();
+                observe += FixedDelta();
+                float x = _car.PhysicsBody.position.x;
+                float fwd = _car.ForwardSpeed;
+                maxX = Mathf.Max(maxX, x);
+                maxFwd = Mathf.Max(maxFwd, fwd);
+                if (x > farFaceX) tunneled = true;
+                if (float.IsNaN(x) || float.IsNaN(fwd)) nan = true;
+            }
+
+            Debug.Log($"[Wall] shallow-10deg: approach={_approachSpeedMs:F2} contactV={speedAtContact:F2} " +
+                $"endV={_car.ForwardSpeed:F2} maxFwd={maxFwd:F2} maxX={maxX:F2} farFace={farFaceX:F2} " +
+                $"tunneled={tunneled} grounded={_car.GroundedWheelCount} reversing={_car.IsReversing}");
+
+            Assert.IsFalse(nan, "position or speed became NaN during the glance");
+            Assert.IsFalse(tunneled,
+                $"tunneled through the wall: max x {maxX:F2} m past the far face at {farFaceX:F2} m");
+            Assert.Greater(_car.ForwardSpeed, minRetainedSpeedMs,
+                $"lost forward speed after the glance: {_car.ForwardSpeed:F2} m/s at end " +
+                $"(contact {speedAtContact:F2}, approach {_approachSpeedMs:F2})");
+            Assert.GreaterOrEqual(_car.GroundedWheelCount, 2,
+                $"not drivable after the glance: {_car.GroundedWheelCount} wheels grounded");
+            Assert.IsFalse(_car.IsReversing, "glance latched the reverse; the car should still be travelling forward");
+        }
+
+        /// <summary>
         /// The manoeuvre, run the same way every time: full throttle until the nose is on the wall,
         /// <see cref="StuckSeconds"/> of throttle held there — the trapped state itself, W pushing at a
         /// barrier with the car going nowhere and making no speed — then the brake alone for
