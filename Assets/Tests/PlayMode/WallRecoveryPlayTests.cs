@@ -297,26 +297,116 @@ namespace OpenWheelRacer.Tests.PlayMode
         [UnityTest]
         public IEnumerator Shallow_10deg_WallGlance_SlidesWithoutTunneling()
         {
-            const float innerFaceX = 12f;
-            const float thickness = 1f;
-            const float glanceYawDegrees = 10f;
-            const float glanceSpeedMs = 35f;
             const float minRetainedSpeedMs = 14f;
             const float observeSeconds = 1.5f;
-            const float farFaceX = innerFaceX + thickness;
 
+            yield return RunGlanceOntoWall();
+
+            var glance = new GlanceObservation();
+            yield return ObserveGlance(observeSeconds, holdThrottle: true, glance);
+
+            Debug.Log($"[Wall] shallow-10deg: approach={_approachSpeedMs:F2} contactV={glance.ContactVms:F2} " +
+                $"endV={glance.EndVms:F2} maxFwd={glance.PeakForwardMs:F2} maxX={glance.MaxX:F2} " +
+                $"farFace={GlanceFarFaceX:F2} tunneled={glance.Tunneled} " +
+                $"grounded={_car.GroundedWheelCount} reversing={_car.IsReversing}");
+
+            Assert.IsFalse(glance.Nan, "position or speed became NaN during the glance");
+            Assert.IsFalse(glance.Tunneled,
+                $"tunneled through the wall: max x {glance.MaxX:F2} m past the far face at {GlanceFarFaceX:F2} m");
+            Assert.Greater(glance.EndVms, minRetainedSpeedMs,
+                $"lost forward speed after the glance: {glance.EndVms:F2} m/s at end " +
+                $"(contact {glance.ContactVms:F2}, approach {_approachSpeedMs:F2})");
+            Assert.GreaterOrEqual(_car.GroundedWheelCount, 2,
+                $"not drivable after the glance: {_car.GroundedWheelCount} wheels grounded");
+            Assert.IsFalse(_car.IsReversing, "glance latched the reverse; the car should still be travelling forward");
+        }
+
+        /// <summary>
+        /// The same shallow glance with the driver's foot off the moment the nose arrives: throttle 0
+        /// and brake 0 from first contact through <see cref="CoastObserveSeconds"/> of watching. With
+        /// nothing driving it the car can only lose speed — to engine braking, to friction, to scrubbing
+        /// the barrier — so if it ever reads going faster than it arrived, the wall itself pushed it.
+        /// That is the question the throttled glance above cannot answer: a held W can pour speed on a
+        /// car sliding along a barrier all by itself, and only lifting off tells the two apart.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Shallow_10deg_WallGlance_Coast_DoesNotGainSpeed()
+        {
+            yield return RunGlanceOntoWall();
+
+            var glance = new GlanceObservation();
+            yield return ObserveGlance(CoastObserveSeconds, holdThrottle: false, glance);
+
+            Debug.Log($"[Wall] shallow-10deg-coast: contactV={glance.ContactVms:F2} peak={glance.PeakForwardMs:F2} " +
+                $"endV={glance.EndVms:F2} maxX={glance.MaxX:F2} farFace={GlanceFarFaceX:F2} " +
+                $"tunneled={glance.Tunneled} grounded={_car.GroundedWheelCount} reversing={_car.IsReversing}");
+
+            Assert.IsFalse(glance.Nan, "position or speed became NaN during the coasting glance");
+            Assert.IsFalse(glance.Tunneled,
+                $"tunneled through the wall: max x {glance.MaxX:F2} m past the far face at {GlanceFarFaceX:F2} m");
+            Assert.LessOrEqual(glance.PeakForwardMs, glance.ContactVms + CoastGainToleranceMs,
+                $"the coasting glance gained speed: peaked at {glance.PeakForwardMs:F2} m/s against the " +
+                $"{glance.ContactVms:F2} m/s it arrived at, {glance.PeakForwardMs - glance.ContactVms:F2} m/s " +
+                "the wall added with no throttle on it");
+        }
+
+        // ---- the shared shallow-glance rig -----------------------------------------------------------
+
+        /// <summary>The glance wall: 1 m thick, running 160 m along Z with its inner face 12 m off the
+        /// car's line, so a car aimed 10° at it arrives at the face and slides along it.</summary>
+        private const float GlanceInnerFaceX = 12f;
+        private const float GlanceWallThicknessM = 1f;
+
+        /// <summary>Past this x the car is through the wall rather than against it.</summary>
+        private const float GlanceFarFaceX = GlanceInnerFaceX + GlanceWallThicknessM;
+
+        /// <summary>The shallow hit: aimed 10° at the barrier and brought up to about 35 m/s, so the
+        /// nose is deflected along the face rather than stopped in it.</summary>
+        private const float GlanceYawDegrees = 10f;
+        private const float GlanceSpeedMs = 35f;
+
+        /// <summary>How long the coasting glance is watched for, and how much of a peak over the speed
+        /// it arrived at is still the suspension rocking rather than the wall pushing.</summary>
+        private const float CoastObserveSeconds = 3f;
+        private const float CoastGainToleranceMs = 0.5f;
+
+        /// <summary>
+        /// What one glance measured after the nose arrived: the signed forward speed it arrived at, the
+        /// peak and final signed forward speeds of the window, how far into the wall the body ever got,
+        /// and whether it punched through or went to NaN on the way. Plain fields — the runner measures
+        /// and the calling test judges, as everywhere else in this fixture.
+        /// </summary>
+        private sealed class GlanceObservation
+        {
+            public float ContactVms;
+            public float EndVms;
+            public float PeakForwardMs;
+            public float MaxX;
+            public bool Tunneled;
+            public bool Nan;
+        }
+
+        /// <summary>
+        /// The stage and approach both glances run: open tarmac with the long barrier down the right,
+        /// the car settled, yawed 10° toward the face, brought up to about 35 m/s on the throttle
+        /// alone, and driven on full throttle until <see cref="NoseOnWall"/> says the nose has arrived.
+        /// Leaving full throttle on the controls, which is the state the coasting test lifts off from.
+        /// </summary>
+        private IEnumerator RunGlanceOntoWall()
+        {
             BuildOpenPlaneStage();
 
             _wall = new GameObject(WallName);
-            _wall.transform.position = new Vector3(innerFaceX + thickness * 0.5f, WallSize.y * 0.5f, 60f);
+            _wall.transform.position = new Vector3(
+                GlanceInnerFaceX + GlanceWallThicknessM * 0.5f, WallSize.y * 0.5f, 60f);
             _wall.transform.rotation = Quaternion.identity;
             _wallCollider = _wall.AddComponent<BoxCollider>();
-            _wallCollider.size = new Vector3(thickness, 3f, 160f);
+            _wallCollider.size = new Vector3(GlanceWallThicknessM, 3f, 160f);
 
             yield return FixedSteps(SettleSeconds);
 
             Vector3 pos = _car.PhysicsBody.position;
-            Quaternion heading = Quaternion.Euler(0f, glanceYawDegrees, 0f);
+            Quaternion heading = Quaternion.Euler(0f, GlanceYawDegrees, 0f);
             _carObject.transform.SetPositionAndRotation(pos, heading);
             _car.PhysicsBody.position = pos;
             _car.PhysicsBody.rotation = heading;
@@ -324,7 +414,7 @@ namespace OpenWheelRacer.Tests.PlayMode
             _car.SetTestControls(0f, 0f, 0f);
             yield return new WaitForFixedUpdate();
 
-            yield return AccelerateTo(glanceSpeedMs);
+            yield return AccelerateTo(GlanceSpeedMs);
             Assert.GreaterOrEqual(_approachSpeedMs, 30f,
                 $"never reached glance speed, only {_approachSpeedMs:F2} m/s in {_approachSeconds:F2} s " +
                 $"(already on wall={NoseOnWall()}, x={_car.PhysicsBody.position.x:F2})");
@@ -340,39 +430,34 @@ namespace OpenWheelRacer.Tests.PlayMode
             Assert.IsTrue(NoseOnWall(),
                 $"never touched the wall after {untilContact:F2} s (x={_car.PhysicsBody.position.x:F2}, " +
                 $"z={_car.PhysicsBody.position.z:F2}, first={_probe.FirstColliderName})");
+        }
 
-            float speedAtContact = _car.ForwardSpeed;
-            float maxX = _car.PhysicsBody.position.x;
-            float maxFwd = speedAtContact;
+        /// <summary>
+        /// Watch the car for <paramref name="seconds"/> from first contact, holding the full throttle
+        /// the way the trapped driver does when <paramref name="holdThrottle"/> says so and lifting to
+        /// throttle 0, brake 0 when it does not. Peaks the signed forward speed, tracks how far into the
+        /// wall the body got, and notes tunnelling and NaN exactly once so neither can be missed.
+        /// </summary>
+        private IEnumerator ObserveGlance(float seconds, bool holdThrottle, GlanceObservation glance)
+        {
+            glance.ContactVms = _car.ForwardSpeed;
+            glance.PeakForwardMs = glance.ContactVms;
+            glance.MaxX = _car.PhysicsBody.position.x;
+
             float observe = 0f;
-            bool tunneled = false;
-            bool nan = false;
-            _car.SetTestControls(FullInput, 0f, 0f);
-            while (observe < observeSeconds)
+            _car.SetTestControls(holdThrottle ? FullInput : 0f, 0f, 0f);
+            while (observe < seconds)
             {
                 yield return new WaitForFixedUpdate();
                 observe += FixedDelta();
                 float x = _car.PhysicsBody.position.x;
                 float fwd = _car.ForwardSpeed;
-                maxX = Mathf.Max(maxX, x);
-                maxFwd = Mathf.Max(maxFwd, fwd);
-                if (x > farFaceX) tunneled = true;
-                if (float.IsNaN(x) || float.IsNaN(fwd)) nan = true;
+                glance.MaxX = Mathf.Max(glance.MaxX, x);
+                glance.PeakForwardMs = Mathf.Max(glance.PeakForwardMs, fwd);
+                if (x > GlanceFarFaceX) glance.Tunneled = true;
+                if (float.IsNaN(x) || float.IsNaN(fwd)) glance.Nan = true;
             }
-
-            Debug.Log($"[Wall] shallow-10deg: approach={_approachSpeedMs:F2} contactV={speedAtContact:F2} " +
-                $"endV={_car.ForwardSpeed:F2} maxFwd={maxFwd:F2} maxX={maxX:F2} farFace={farFaceX:F2} " +
-                $"tunneled={tunneled} grounded={_car.GroundedWheelCount} reversing={_car.IsReversing}");
-
-            Assert.IsFalse(nan, "position or speed became NaN during the glance");
-            Assert.IsFalse(tunneled,
-                $"tunneled through the wall: max x {maxX:F2} m past the far face at {farFaceX:F2} m");
-            Assert.Greater(_car.ForwardSpeed, minRetainedSpeedMs,
-                $"lost forward speed after the glance: {_car.ForwardSpeed:F2} m/s at end " +
-                $"(contact {speedAtContact:F2}, approach {_approachSpeedMs:F2})");
-            Assert.GreaterOrEqual(_car.GroundedWheelCount, 2,
-                $"not drivable after the glance: {_car.GroundedWheelCount} wheels grounded");
-            Assert.IsFalse(_car.IsReversing, "glance latched the reverse; the car should still be travelling forward");
+            glance.EndVms = _car.ForwardSpeed;
         }
 
         /// <summary>

@@ -22,13 +22,30 @@ namespace OpenWheelRacer.Tests.PlayMode
             if (_plane != null) Object.Destroy(_plane);
         }
 
-        private static GameObject PlainBox()
+        /// <summary>Plain 700 kg sliding cube. With <paramref name="frictionlessSlide"/> it wears a
+        /// near-zero-friction material (Minimum combine, no bounce) so a launched mover keeps its launch
+        /// speed: on the plane's default friction the plain box ploughed down to ~3.5 m/s over the 20 m
+        /// slide, which made every box-mover impact too soft to be a valid hit.</summary>
+        private static GameObject PlainBox(bool frictionlessSlide = false)
         {
             GameObject go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.transform.localScale = new Vector3(1.7f, 0.6f, 3.7f);
             Rigidbody rb = go.AddComponent<Rigidbody>();
             rb.mass = 700f;
             rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
+            if (frictionlessSlide)
+            {
+                var slide = new PhysicsMaterial("Ctl_Slider")
+                {
+                    hideFlags = HideFlags.DontSave,
+                    dynamicFriction = 0f,
+                    staticFriction = 0f,
+                    frictionCombine = PhysicsMaterialCombine.Minimum,
+                    bounciness = 0f,
+                    bounceCombine = PhysicsMaterialCombine.Minimum
+                };
+                go.GetComponent<Collider>().material = slide;
+            }
             return go;
         }
 
@@ -60,7 +77,7 @@ namespace OpenWheelRacer.Tests.PlayMode
             _plane = GameObject.CreatePrimitive(PrimitiveType.Plane);
             _plane.transform.localScale = new Vector3(30f, 1f, 30f);
             _target = targetIsCar ? VehicleController.BuildCar(null, false) : PlainBox();
-            _mover = moverIsCar ? VehicleController.BuildCar(null, false) : PlainBox();
+            _mover = moverIsCar ? VehicleController.BuildCar(null, false) : PlainBox(frictionlessSlide: true);
             Rigidbody tb = _target.GetComponent<Rigidbody>(), mb = _mover.GetComponent<Rigidbody>();
             if (targetIsCar) _target.GetComponent<VehicleController>().SetTestControls(0f, 0f, 0f);
             if (moverIsCar) _mover.GetComponent<VehicleController>().SetTestControls(0f, 0f, 0f);
@@ -100,7 +117,7 @@ namespace OpenWheelRacer.Tests.PlayMode
 
         [UnityTest] public IEnumerator Ctl1_BoxIntoBox() { yield return Run("box->box", false, false, null); }
         [UnityTest] public IEnumerator Ctl2_CarIntoBox() { yield return Run("car->box", true, false, null); }
-        [UnityTest, Ignore("Invalid fixture, deferred with the contact known issue: the sliding plain-box mover loses most of its launch speed to ground friction (3.5 m/s at contact in Ctl1) and does not reach a valid impact speed against the car.")] public IEnumerator Ctl3_BoxIntoCar_Default() { yield return Run("box->car default", false, true, null); }
+        [UnityTest] public IEnumerator Ctl3_BoxIntoCar_Default() { yield return Run("box->car default", false, true, null); }
         [UnityTest] public IEnumerator Ctl4_CarIntoCar_Default() { yield return Run("car->car default", true, true, null); }
         [UnityTest] public IEnumerator Ctl5_CarIntoCar_TargetNoDrag() { yield return Run("car->car target controller off, brake 0", true, true, t => FreeWheels(t, -1f)); }
         [UnityTest] public IEnumerator Ctl6_CarIntoCar_TargetNoFriction() { yield return Run("car->car target brake 0, wheel friction 0.01", true, true, t => FreeWheels(t, 0.01f)); }
