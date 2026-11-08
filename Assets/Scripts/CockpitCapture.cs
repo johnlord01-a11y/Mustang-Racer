@@ -56,7 +56,7 @@ namespace OpenWheelRacer
             RaceSession session = null;
             while (waited < TimeoutSeconds)
             {
-                if (session == null) session = FindFirstObjectByType<RaceSession>();
+                if (session == null) session = FindAnyObjectByType<RaceSession>();
                 if (session != null && session.Flow != null && session.Flow.Phase != RacePhase.Countdown) break;
                 waited += Time.unscaledDeltaTime;
                 yield return null;

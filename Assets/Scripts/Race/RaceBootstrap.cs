@@ -181,7 +181,7 @@ namespace OpenWheelRacer.Race
             Scene active = SceneManager.GetActiveScene();
 
             foreach (RaceSession session in
-                         Object.FindObjectsByType<RaceSession>(FindObjectsSortMode.None))
+                         Object.FindObjectsByType<RaceSession>())
             {
                 if (session != null && session.gameObject.scene == active)
                 {
@@ -271,7 +271,7 @@ namespace OpenWheelRacer.Race
         /// </summary>
         private static void EnsureDirectionalLight()
         {
-            if (Object.FindFirstObjectByType<Light>() != null)
+            if (Object.FindAnyObjectByType<Light>() != null)
             {
                 return;
             }
