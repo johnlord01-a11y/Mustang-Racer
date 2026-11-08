@@ -142,7 +142,7 @@ namespace OpenWheelRacer
             chassisCollider.size = new Vector3(1.7f, 0.6f, 3.7f);
 
             var controller = go.AddComponent<VehicleController>();
-            controller.tuning = tuningOrNull;
+            controller.tuning = tuningOrNull != null ? tuningOrNull : ResolveDefaultTuning();
             controller.HumanControlled = humanControlled;
             go.SetActive(true); // In play, Awake() runs here with tuning wired.
 
@@ -157,6 +157,17 @@ namespace OpenWheelRacer
             var t = ScriptableObject.CreateInstance<VehicleTuning>();
             t.name = "VehicleTuning_Runtime";
             return t;
+        }
+
+        /// <summary>
+        /// The project default ScriptableObject when present under Resources; otherwise
+        /// an in-memory instance with the same field defaults as <see cref="VehicleTuning"/>.
+        /// Used by <see cref="BuildCar"/> so Awake never sees a null tuning.
+        /// </summary>
+        public static VehicleTuning ResolveDefaultTuning()
+        {
+            VehicleTuning loaded = Resources.Load<VehicleTuning>("VehicleTuning_Default");
+            return loaded != null ? loaded : CreateDefaultTuning();
         }
 
         // --------------------------------------------------------------- setup
@@ -177,8 +188,9 @@ namespace OpenWheelRacer
 
             if (tuning == null)
             {
-                Debug.LogWarning("[VehicleController] No VehicleTuning assigned; using runtime defaults.");
-                tuning = CreateDefaultTuning();
+                // Spawn paths (BuildCar, scene objects) resolve the default asset or a
+                // runtime instance so every car has real tuning before physics starts.
+                tuning = ResolveDefaultTuning();
             }
 
             _rigidbody = GetComponent<Rigidbody>();
