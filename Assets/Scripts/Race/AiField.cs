@@ -83,8 +83,6 @@ namespace OpenWheelRacer.Race
         /// <summary>Size of the chassis box <see cref="VehicleController.BuildCar"/> stands up.</summary>
         private static readonly Vector3 BodySize = new Vector3(1.7f, 0.6f, 3.7f);
 
-        private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor"); // URP Lit
-        private static readonly int ColorId = Shader.PropertyToID("_Color");         // Standard
 
         /// <summary>
         /// Build <paramref name="count"/> opponents and place them on the grid behind the player, each
@@ -246,20 +244,18 @@ namespace OpenWheelRacer.Race
         }
 
         /// <summary>
-        /// Give the car a body to be seen wearing: one cube the size of the chassis collider
-        /// <see cref="VehicleController.BuildCar"/> stands up, sitting on the same centre, in this
-        /// opponent's colour. <see cref="VehicleController.BuildCar"/> builds physics and no graphics —
-        /// invisible but harmless when the only car in the race is the one the player never sees, and not
-        /// harmless once the cars that have to be read at 25 m/s are somebody else's.
+        /// Give the car a body to be seen wearing in this opponent's colour. The body itself —
+        /// the open-wheel primitives of <see cref="VehicleController.BuildCar"/>'s
+        /// <see cref="VehicleController.BodyRootName"/> root — exists already; all this does is
+        /// make one material in the opponent's colour and put it on every piece of that body.
         ///
-        /// It is a child of the chassis and it carries no collider: the chassis box is the car as far as
-        /// physics is concerned, and a second box on the same car is two colliders on one body grinding
-        /// against each other.
+        /// A car whose body root is missing (defence against a chassis built some other way)
+        /// still gets the old fallback: one collider-free cube the size of the chassis box.
         /// </summary>
         /// <param name="chassis">The car to fit out.</param>
         /// <param name="color">The colour of the body.</param>
-        /// <param name="shader">Body shader, or null to leave the cube on Unity's default material.</param>
-        /// <param name="name">Name of the car, which the body cube is named after.</param>
+        /// <param name="shader">Body shader, or null to leave the body on its default material.</param>
+        /// <param name="name">Name of the car, which a fallback body cube is named after.</param>
         /// <param name="material">
         /// The material created for it — the caller hands it to the driver, whose own destruction frees
         /// it. Null when there was no shader to make one from.
@@ -269,23 +265,30 @@ namespace OpenWheelRacer.Race
         {
             material = null;
 
-            var body = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            body.name = $"{name}_Body";
-            body.transform.SetParent(chassis.transform, false);
-            body.transform.localPosition = BodyCentre;
-            body.transform.localScale = BodySize;
-
-            Collider collider = body.GetComponent<Collider>();
-            if (collider != null)
+            Transform bodyRoot = chassis.transform.Find(VehicleController.BodyRootName);
+            if (bodyRoot == null)
             {
-                // The chassis box already is this cube's shape; two colliders on one car is a car that
-                // collides with itself.
-                Object.Destroy(collider);
+                // No body to paint: wear the old plain cube rather than be invisible.
+                var fallback = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                fallback.name = $"{name}_Body";
+                fallback.transform.SetParent(chassis.transform, false);
+                fallback.transform.localPosition = BodyCentre;
+                fallback.transform.localScale = BodySize;
+
+                Collider fallbackCollider = fallback.GetComponent<Collider>();
+                if (fallbackCollider != null)
+                {
+                    // The chassis box already is this cube's shape; two colliders on one car is a car
+                    // that collides with itself.
+                    Object.Destroy(fallbackCollider);
+                }
+
+                bodyRoot = fallback.transform;
             }
 
             if (shader == null)
             {
-                return; // Nothing to paint with: a default-material cube still beats an invisible car.
+                return; // Nothing to paint with: default-material parts still beat an invisible car.
             }
 
             material = new Material(shader)
@@ -294,21 +297,15 @@ namespace OpenWheelRacer.Race
                 hideFlags = HideFlags.DontSave
             };
 
-            // URP Lit keeps its albedo in _BaseColor, Standard in _Color — the same pair
-            // <see cref="TrackBuilder"/> paints the circuit with, so both pipelines get the colour.
-            if (material.HasProperty(BaseColorId))
-            {
-                material.SetColor(BaseColorId, color);
-            }
-            else if (material.HasProperty(ColorId))
-            {
-                material.SetColor(ColorId, color);
-            }
+            // URP Lit keeps its albedo in _BaseColor, Standard in _Color — one helper in
+            // VehicleController knows both, so the field and the player's car are painted
+            // through exactly the same door.
+            VehicleController.PaintColor(material, color);
 
-            Renderer bodyRenderer = body.GetComponent<Renderer>();
-            if (bodyRenderer != null)
+            Renderer[] renderers = bodyRoot.GetComponentsInChildren<Renderer>(true);
+            for (int i = 0; i < renderers.Length; i++)
             {
-                bodyRenderer.sharedMaterial = material;
+                renderers[i].sharedMaterial = material;
             }
         }
 

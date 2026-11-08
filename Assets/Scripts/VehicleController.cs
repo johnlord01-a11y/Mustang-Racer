@@ -204,6 +204,7 @@ namespace OpenWheelRacer
 
             BuildPhysicsBody();
             BuildWheels();
+            BuildVisualBody();
 
             // A car that never reads devices has no reason to load the map that reads them, and
             // several cars sharing one asset makes that more than a wasted load: each one enables
@@ -295,6 +296,168 @@ namespace OpenWheelRacer
             }
             var existing = child.GetComponent<WheelCollider>();
             return existing != null ? existing : child.gameObject.AddComponent<WheelCollider>();
+        }
+
+        // -------------------------------------------------------- visual body
+
+        /// <summary>
+        /// Name of the child every placeholder body part hangs under, and the handle
+        /// <c>AiField</c> paints instead of adding a second body.
+        /// </summary>
+        public const string BodyRootName = "BodyVisual";
+
+        /// <summary>Body colour of a car nobody has painted: racing red.</summary>
+        public static readonly Color DefaultBodyColor = new Color(0.72f, 0.09f, 0.10f);
+
+        private static readonly string[] BodyShaderNames =
+        {
+            "Universal Render Pipeline/Lit", "Standard",
+        };
+
+        /// <summary>
+        /// A placeholder open-wheel car cut out of primitives: a narrow tub with a
+        /// pointed nose, stubby sidepods, an engine cover with an airbox over the
+        /// driver's head, a halo over the cockpit, a rear wing on two endplates and a
+        /// front wing with its own endplates. Wheels stay exposed outside the body —
+        /// that is what makes it read as an open-wheel car.
+        ///
+        /// Every piece is pure graphics: each primitive's collider is destroyed the
+        /// moment it is created, so the car keeps wearing exactly one box and four
+        /// wheels to physics, exactly as it did before there was anything to look at.
+        /// Nothing here reads <c>tuning</c>; changing the shape cannot change the drive.
+        /// </summary>
+        private void BuildVisualBody()
+        {
+            if (transform.Find(BodyRootName) != null)
+            {
+                return; // Built already (editor path re-invokes Initialize).
+            }
+
+            var root = new GameObject(BodyRootName);
+            root.transform.SetParent(transform, worldPositionStays: false);
+
+            Material paint = CreateBodyPaint();
+
+            // Chassis-local: +z nose, ground at y = 0, wheels at x = +/-0.75,
+            // z = +1.20 / -1.25. Everything below stays inside x = +/-0.7 so the
+            // wheels hang out in the open past the bodywork.
+            AddVisualPart(root.transform, "Tub", PrimitiveType.Cube,
+                new Vector3(0f, 0.33f, -0.05f), new Vector3(0.55f, 0.5f, 2.2f), paint);
+            AddVisualPart(root.transform, "Nose", PrimitiveType.Cube,
+                new Vector3(0f, 0.30f, 1.45f), new Vector3(0.30f, 0.24f, 0.9f), paint);
+            AddVisualPart(root.transform, "CockpitHelmet", PrimitiveType.Sphere,
+                new Vector3(0f, 0.60f, 0.28f), new Vector3(0.28f, 0.28f, 0.28f), paint);
+            AddVisualPart(root.transform, "Halo", PrimitiveType.Sphere,
+                new Vector3(0f, 0.56f, 0.30f), new Vector3(0.52f, 0.16f, 0.62f), paint);
+            AddVisualPart(root.transform, "Airbox", PrimitiveType.Cube,
+                new Vector3(0f, 0.74f, -0.08f), new Vector3(0.24f, 0.30f, 0.34f), paint);
+            AddVisualPart(root.transform, "EngineCoverUpper", PrimitiveType.Cube,
+                new Vector3(0f, 0.52f, -0.78f), new Vector3(0.42f, 0.34f, 0.9f), paint);
+            AddVisualPart(root.transform, "EngineCoverLower", PrimitiveType.Cube,
+                new Vector3(0f, 0.40f, -1.38f), new Vector3(0.36f, 0.24f, 0.6f), paint);
+            AddVisualPart(root.transform, "Sidepod_L", PrimitiveType.Cube,
+                new Vector3(-0.56f, 0.30f, -0.10f), new Vector3(0.40f, 0.36f, 1.2f), paint);
+            AddVisualPart(root.transform, "Sidepod_R", PrimitiveType.Cube,
+                new Vector3(0.56f, 0.30f, -0.10f), new Vector3(0.40f, 0.36f, 1.2f), paint);
+            AddVisualPart(root.transform, "RearWing", PrimitiveType.Cube,
+                new Vector3(0f, 0.82f, -1.62f), new Vector3(1.10f, 0.05f, 0.40f), paint);
+            AddVisualPart(root.transform, "RearWingEndplate_L", PrimitiveType.Cube,
+                new Vector3(-0.55f, 0.62f, -1.62f), new Vector3(0.05f, 0.42f, 0.45f), paint);
+            AddVisualPart(root.transform, "RearWingEndplate_R", PrimitiveType.Cube,
+                new Vector3(0.55f, 0.62f, -1.62f), new Vector3(0.05f, 0.42f, 0.45f), paint);
+            AddVisualPart(root.transform, "FrontWing", PrimitiveType.Cube,
+                new Vector3(0f, 0.12f, 1.85f), new Vector3(1.44f, 0.05f, 0.45f), paint);
+            AddVisualPart(root.transform, "FrontWingEndplate_L", PrimitiveType.Cube,
+                new Vector3(-0.70f, 0.17f, 1.85f), new Vector3(0.05f, 0.15f, 0.42f), paint);
+            AddVisualPart(root.transform, "FrontWingEndplate_R", PrimitiveType.Cube,
+                new Vector3(0.70f, 0.17f, 1.85f), new Vector3(0.05f, 0.15f, 0.42f), paint);
+        }
+
+        /// <summary>
+        /// One visual piece: a primitive under <paramref name="parent"/>, painted when
+        /// there is paint to paint with, and stripped of the collider Unity insists on
+        /// giving every primitive — a car whose wings collided with the wall would be
+        /// a car steered by its front wing.
+        /// </summary>
+        private static void AddVisualPart(Transform parent, string name, PrimitiveType type,
+            Vector3 localPos, Vector3 localScale, Material paint)
+        {
+            var part = GameObject.CreatePrimitive(type);
+            part.name = name;
+            part.transform.SetParent(parent, worldPositionStays: false);
+            part.transform.localPosition = localPos;
+            part.transform.localScale = localScale;
+
+            Collider collider = part.GetComponent<Collider>();
+            if (collider != null)
+            {
+                // Immediate, not deferred: a piece that collides for the rest of the
+                // frame it was born in is a piece a same-frame test — or a car already
+                // touching a wall — can still hit.
+                Object.DestroyImmediate(collider);
+            }
+
+            if (paint != null)
+            {
+                Renderer renderer = part.GetComponent<Renderer>();
+                if (renderer != null)
+                {
+                    renderer.sharedMaterial = paint;
+                }
+            }
+        }
+
+        /// <summary>
+        /// The shared red for an unpainted car's body, or null when the project has
+        /// neither shader to make one from — the parts then keep Unity's default
+        /// material, which still beats an invisible car. The same pair of shaders
+        /// <c>TrackBuilder</c> paints the circuit with, so car and track agree on
+        /// where the colour lives.
+        /// </summary>
+        private static Material CreateBodyPaint()
+        {
+            Shader shader = null;
+            for (int i = 0; i < BodyShaderNames.Length && shader == null; i++)
+            {
+                shader = Shader.Find(BodyShaderNames[i]);
+            }
+
+            if (shader == null)
+            {
+                return null;
+            }
+
+            var material = new Material(shader)
+            {
+                name = "Car_BodyMaterial",
+                hideFlags = HideFlags.DontSave
+            };
+
+            PaintColor(material, DefaultBodyColor);
+            return material;
+        }
+
+        /// <summary>
+        /// Write <paramref name="color"/> to the albedo of either pipeline: URP Lit
+        /// keeps it in <c>_BaseColor</c>, the built-in Standard shader in <c>_Color</c>.
+        /// Public so <c>AiField</c> can paint one car's body in its own colour through
+        /// the same door the parts were built behind.
+        /// </summary>
+        public static void PaintColor(Material material, Color color)
+        {
+            static int Id(string propertyName) => Shader.PropertyToID(propertyName);
+
+            int baseColorId = Id("_BaseColor");
+            int colorId = Id("_Color");
+
+            if (material.HasProperty(baseColorId))
+            {
+                material.SetColor(baseColorId, color);
+            }
+            else if (material.HasProperty(colorId))
+            {
+                material.SetColor(colorId, color);
+            }
         }
 
         // -------------------------------------------------------------- update
