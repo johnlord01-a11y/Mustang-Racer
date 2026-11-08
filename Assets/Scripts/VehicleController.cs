@@ -30,6 +30,40 @@ namespace OpenWheelRacer
         private float _currentSteerAngle;
         private float _currentSpeed;
 
+        /// <summary>
+        /// Signed speed along the chassis forward axis in m/s, taken with the rest of the control
+        /// frame: positive is nose-first, negative is the car rolling backwards. <see cref="_currentSpeed"/>
+        /// is the magnitude the HUD, the grip and the power curve are after; this is the figure the
+        /// reverse latch needs, because throttle and reverse are keys the physics can only tell apart
+        /// by which way the car is actually going.
+        /// </summary>
+        private float _currentForwardSpeed;
+
+        /// <summary>
+        /// Latched state of the brake key: whether it is driving the car backwards right now rather
+        /// than slowing it. Latched rather than re-derived every frame so the car keeps backing out of
+        /// the wall it has just been walked off instead of flipping to braking the instant the reverse
+        /// crosses the engage speed — see <see cref="ApplyDriveAndBrake"/>.
+        /// </summary>
+        private bool _reversing;
+
+        /// <summary>
+        /// Signed forward speed (m/s) below which throttle taken by a car that is already rolling
+        /// backwards gets the discs rather than the drive, so W stops the roll before driving off from
+        /// it instead of spinning against a car still on its way the other way.
+        /// </summary>
+        private const float BackwardRollCutoverMs = -0.5f;
+
+        /// <summary>Below this, a steer angle is treated as centred rather than locked either way.</summary>
+        private const float SteerAngleEpsilon = 0.001f;
+
+        /// <summary>
+        /// Rear axle sideways stiffness last written to the WheelColliders by
+        /// <see cref="ApplyDriveAndBrake"/>. Starts as NaN so the first control frame writes it and
+        /// every later frame only writes when the handbrake actually changes the value.
+        /// </summary>
+        private float _rearSidewaysStiffness = float.NaN;
+
         // Headless referee overrides (see SetTestControls / StepTestFrame).
         private bool _testControls;
         private float _testThrottle, _testBrake, _testSteer;
@@ -37,6 +71,39 @@ namespace OpenWheelRacer
 
         public VehicleTuning Tuning => tuning;
         public float CurrentSpeedMs => _currentSpeed;
+
+        /// <summary>
+        /// Whether a person in front of a keyboard drives this car. Default true, which is every car
+        /// this project built before there were opponents: <see cref="Update"/> listens for the R key
+        /// and <see cref="FixedUpdate"/> reads the devices.
+        ///
+        /// Set false and the car is remote-controlled — an AI driver, a replay, an incident
+        /// reconstruction — and the machines that a person drives stay somebody else's: the reset key
+        /// is ignored, and the control frames take only what has been handed in through
+        /// <see cref="SetTestControls"/>. Two reasons, both about a field of cars rather than one:
+        /// every car built as a human car listens to the one shared keyboard, so a grid of three
+        /// opponents was a grid of three cars resetting on the same keypress and steering wherever the
+        /// player steered; and loading and enabling the input map per car lets any one of them take it
+        /// away from the player when it is destroyed. An AI car has no use for the map at all, so
+        /// <see cref="Initialize"/> does not build one.
+        ///
+        /// Public field rather than a property assigned in the inspector because the only writer so far
+        /// sets it while building the car, before Unity has run any lifecycle message on it — see
+        /// <see cref="BuildCar(VehicleTuning, bool)"/>.
+        /// </summary>
+        public bool HumanControlled = true;
+
+        /// <summary>
+        /// Signed speed along the chassis forward axis in m/s — positive nose-first, negative backwards
+        /// — where <see cref="CurrentSpeedMs"/> is the magnitude. Both a stood-still car and a car pinned
+        /// nose-first on a wall read 0 on the magnitude; only the sign says which way the brake key has
+        /// to drive it, which is what the reverse latch and anything watching it are after.
+        /// </summary>
+        public float ForwardSpeed => _currentForwardSpeed;
+
+        /// <summary>Whether the brake key is driving the car backwards this frame (reverse engaged).</summary>
+        public bool IsReversing => _reversing;
+
         public float CurrentSteerAngle => _currentSteerAngle;
         public int GroundedWheelCount { get; private set; }
 
@@ -56,7 +123,16 @@ namespace OpenWheelRacer
         /// Unity 6 edit mode never calls Awake on script-added components,
         /// so Initialize() is also invoked explicitly — it is idempotent.
         /// </summary>
-        public static GameObject BuildCar(VehicleTuning tuningOrNull)
+        /// <param name="tuningOrNull">Tuning to wire in; runtime defaults when null.</param>
+        /// <param name="humanControlled">
+        /// Whether a person drives the car built. It has to be said here rather than assigned
+        /// afterwards, because <see cref="HumanControlled"/> decides whether
+        /// <see cref="Initialize"/> loads and enables the input map at all, and Awake — which is
+        /// where initialization happens for a car built by activation — runs inside the
+        /// <c>SetActive(true)</c> below. Left true, every caller that has ever called the one-argument
+        /// form gets exactly the car it always got.
+        /// </param>
+        public static GameObject BuildCar(VehicleTuning tuningOrNull, bool humanControlled = true)
         {
             var go = new GameObject("Car_Primitive");
             go.SetActive(false);
@@ -67,6 +143,7 @@ namespace OpenWheelRacer
 
             var controller = go.AddComponent<VehicleController>();
             controller.tuning = tuningOrNull;
+            controller.HumanControlled = humanControlled;
             go.SetActive(true); // In play, Awake() runs here with tuning wired.
 
             // In edit mode no lifecycle message fires (and asset-import domain
@@ -110,8 +187,15 @@ namespace OpenWheelRacer
             BuildPhysicsBody();
             BuildWheels();
 
-            _input = new VehicleInput();
-            _input.Initialize(inputAssetOverride);
+            // A car that never reads devices has no reason to load the map that reads them, and
+            // several cars sharing one asset makes that more than a wasted load: each one enables
+            // the same map and each one disables it again on destroy, so the first opponent torn
+            // down would leave the player's keyboard disabled behind it.
+            if (HumanControlled)
+            {
+                _input = new VehicleInput();
+                _input.Initialize(inputAssetOverride);
+            }
         }
 
         private void Start()
@@ -141,7 +225,7 @@ namespace OpenWheelRacer
 
             for (int i = 0; i < 4; i++)
             {
-                ConfigureWheel(_wheels[i], tuning);
+                ConfigureWheel(_wheels[i], tuning, IsFront[i]);
             }
 
             // Unity 6.6: substep config moved from static Rigidbody to the wheel
@@ -152,12 +236,17 @@ namespace OpenWheelRacer
         /// <summary>
         /// Single source of truth for per-wheel setup. Used by runtime BuildWheels
         /// AND the editor bootstrap that authors the prefab, so the prefab and a
-        /// runtime-rebuilt car can never drift apart.
+        /// runtime-rebuilt car can never drift apart. <paramref name="isFront"/> selects
+        /// the axle's sideways grip: front wheels run
+        /// <see cref="VehicleTuning.LateralGripMultiplier"/>, rear wheels the higher
+        /// <see cref="VehicleTuning.RearLateralGripMultiplier"/>, which is what keeps the
+        /// tail planted.
         /// </summary>
-        public static void ConfigureWheel(WheelCollider w, VehicleTuning tuning)
+        public static void ConfigureWheel(WheelCollider w, VehicleTuning tuning, bool isFront)
         {
             var side = w.sidewaysFriction;
-            side.stiffness = tuning.LateralGripMultiplier * 2f; // 2 = Unity default
+            side.stiffness = (isFront ? tuning.LateralGripMultiplier
+                                      : tuning.RearLateralGripMultiplier) * 2f; // 2 = Unity default
             w.sidewaysFriction = side;
 
             var fwd = w.forwardFriction;
@@ -194,7 +283,10 @@ namespace OpenWheelRacer
 
         private void Update()
         {
-            if (_input != null && _input.ResetPressed)
+            // The reset key belongs to whoever is sitting in front of the screen, and there is only
+            // one keyboard to go round: a car driven by something else must not join every other car
+            // on the grid in resetting the moment it is pressed.
+            if (HumanControlled && _input != null && _input.ResetPressed)
             {
                 ResetToSpawn();
             }
@@ -202,8 +294,30 @@ namespace OpenWheelRacer
 
         private void FixedUpdate()
         {
-            if (_input == null || tuning == null) return;
-            ApplyControlFrame(Time.fixedDeltaTime, readInput: true);
+            if (tuning == null) return;
+
+            // A human car whose input map never loaded has no controls to apply, which is how it has
+            // always behaved: it sits the physics step out rather than driving on a phantom input.
+            // An AI car is not missing anything — it has no map by design and its controls come from
+            // the driver component, so it carries on past this point with _input null.
+            if (HumanControlled && _input == null) return;
+
+            // Controls armed with SetTestControls replace the devices for the rest of this
+            // component's life, so a PlayMode test drives the same code path the headless
+            // referee steps through in StepTestFrame (which applies the same rule). A car that is
+            // not human-driven never reads the devices at all: its driver is an AI that hands the
+            // same four controls in through SetTestControls, and _input stays null for it.
+            ApplyControlFrame(Time.fixedDeltaTime, readInput: CanReadDevices());
+        }
+
+        /// <summary>
+        /// Whether a control frame of this car may take its inputs off the devices: a human has to be
+        /// assigned to it, the input map has to exist to be read, and no test or AI driver may have
+        /// armed the override that <see cref="SetTestControls"/> is.
+        /// </summary>
+        private bool CanReadDevices()
+        {
+            return HumanControlled && !_testControls && _input != null;
         }
 
         /// <summary>
@@ -231,6 +345,17 @@ namespace OpenWheelRacer
                 steerInput = _testSteer;
             }
 
+            // Race gate (countdown, or this car has finished): no drive and no steer, the rear
+            // wheels held by the handbrake. Brake stays 0 so the standstill reverse latch cannot engage;
+            // gravity and the suspension still settle the car.
+            if (DriveLocked)
+            {
+                throttle = 0f;
+                brake = 0f;
+                steerInput = 0f;
+                handbrake = true;
+            }
+
             _currentSpeed = Vector3.ProjectOnPlane(_rigidbody.linearVelocity, Vector3.up).magnitude;
 
             ApplySteering(steerInput, dt);
@@ -246,9 +371,12 @@ namespace OpenWheelRacer
             float maxAngle = Mathf.Lerp(tuning.MaxSteerAngle, tuning.HighSpeedSteerAngle, t);
             float targetAngle = steerInput * maxAngle;
 
-            // Rate-limited rack so direction changes never snap the body.
+            // Rate-limited rack so direction changes never snap the body. Winding onto more lock
+            // slews at SteerRate; coming off the lock — back toward centre or across to the other
+            // side of it — unwinds at the quicker SteerReturnRate.
+            float rate = IsWindingOffLock(targetAngle) ? tuning.SteerReturnRate : tuning.SteerRate;
             _currentSteerAngle = Mathf.MoveTowardsAngle(
-                _currentSteerAngle, targetAngle, tuning.SteerRate * dt);
+                _currentSteerAngle, targetAngle, rate * dt);
 
             for (int i = 0; i < 4; i++)
             {
@@ -256,8 +384,53 @@ namespace OpenWheelRacer
             }
         }
 
+        /// <summary>
+        /// Whether the rack is heading off the lock it is holding: less lock is being asked for
+        /// than is in, or the ask is the other way round. Both angles have to be off centre for the
+        /// sign test to count, so a rack being wound on from straight ahead keeps SteerRate.
+        /// </summary>
+        private bool IsWindingOffLock(float targetAngle)
+        {
+            float target = Mathf.Abs(targetAngle);
+            float current = Mathf.Abs(_currentSteerAngle);
+
+            if (target < current - SteerAngleEpsilon) return true;
+
+            return target > SteerAngleEpsilon
+                   && current > SteerAngleEpsilon
+                   && Mathf.Sign(targetAngle) != Mathf.Sign(_currentSteerAngle);
+        }
+
+        /// <summary>
+        /// Drive, brake and reverse the four wheels for one control frame.
+        ///
+        /// One key does three jobs, and which one it is doing comes from the signed forward speed
+        /// rather than from the input. Held with the car above
+        /// <see cref="VehicleTuning.ReverseEngageSpeedMs"/> the brake is a brake and nothing else, so a
+        /// car coming down the straight is stopped before anything else can be asked of it. Held with the
+        /// car below it — stood still, or parked on a wall with the nose pushing at it and nowhere left to
+        /// go, which makes no speed for a brake to act on — it engages the reverse: a fraction of the drive
+        /// force (<see cref="VehicleTuning.ReverseForceScale"/>), wound off to nothing at
+        /// <see cref="VehicleTuning.ReverseTopSpeedMs"/>, and the difference between a mistake a driver can
+        /// drive out of and one they can only reset out of. Throttle has the mirror-image problem and the
+        /// mirror-image answer: taken while the car is already rolling backwards it gets the discs, so W
+        /// stops the roll and only then pulls the car forwards out of it.
+        /// </summary>
         private void ApplyDriveAndBrake(float throttle, float brake, bool handbrake)
         {
+            // The rear axle grips harder than the nose by default, so the handbrake has to take that
+            // grip away as well as locking the discs: held, the rear wheels drop to a fraction of
+            // their planted sideways stiffness and the car rotates; released, it comes straight back.
+            float rearGrip = tuning.RearLateralGripMultiplier * 2f; // 2 = Unity default stiffness
+            ApplyRearSidewaysGrip(handbrake ? rearGrip * tuning.HandbrakeRearGripScale : rearGrip);
+
+            // Signed, because brake and reverse are one key and only the direction travelled says which
+            // is being asked for. A car with its nose against a barrier makes no speed at all for a brake
+            // to act on, and the force holding it there is the force that has to come back out of it.
+            float forwardSpeed = Vector3.Dot(_rigidbody.linearVelocity, transform.forward);
+            _currentForwardSpeed = forwardSpeed;
+            UpdateReverseLatch(throttle, brake, forwardSpeed);
+
             // Engine curve: full force off the line, fading toward TopSpeedMs.
             float speedT = Mathf.Clamp01(_currentSpeed / tuning.TopSpeedMs);
             float powerCurve = 1f - speedT * speedT;
@@ -267,15 +440,45 @@ namespace OpenWheelRacer
                 ? throttle * tuning.DriveForcePerWheel * powerCurve * tuning.WheelRadius
                 : 0f;
 
+            // The same contact-patch rule run backwards. The power curve is built on the unsigned speed
+            // and tops out at TopSpeedMs, so it says nothing about a reverse and is not used for one: the
+            // fade here is against the reverse speed itself, which gives the reverse its own ceiling.
+            float reverseTorque = _reversing
+                ? -brake * tuning.DriveForcePerWheel * tuning.ReverseForceScale * tuning.WheelRadius
+                  * (1f - Mathf.Clamp01(-forwardSpeed / Mathf.Max(0.001f, tuning.ReverseTopSpeedMs)))
+                : 0f;
+
+            // W taken by a car already on its way backwards: discs first, drive once the roll is gone.
+            bool rollingBackwards = throttle > 0.01f && forwardSpeed < BackwardRollCutoverMs;
+
             for (int i = 0; i < 4; i++)
             {
                 WheelCollider w = _wheels[i];
                 bool driven = tuning.AllWheelDrive || IsFront[i] == false;
 
-                w.motorTorque = driven ? driveTorque : 0f;
+                if (_reversing)
+                {
+                    w.motorTorque = driven ? reverseTorque : 0f;
+                }
+                else
+                {
+                    w.motorTorque = driven && !rollingBackwards ? driveTorque : 0f;
+                }
 
                 float brakeTorque = 0f;
-                if (brake > 0.01f)
+                if (_reversing)
+                {
+                    // Nothing is clamped on the reverse: it is driven, not scrubbed, and a locked wheel
+                    // on a car being walked backwards out of a barrier only steers it sideways. The
+                    // handbrake lock below stays on top of this because it is a key held for its own
+                    // reason, and an undriven axle is left free to follow it rather than drag on it.
+                    brakeTorque = 0f;
+                }
+                else if (rollingBackwards)
+                {
+                    brakeTorque = throttle * tuning.BrakeTorquePerWheel;
+                }
+                else if (brake > 0.01f)
                 {
                     brakeTorque = brake * tuning.BrakeTorquePerWheel;
                 }
@@ -288,6 +491,48 @@ namespace OpenWheelRacer
                     brakeTorque = Mathf.Max(brakeTorque, tuning.BrakeTorquePerWheel); // rear lock-up
                 }
                 w.brakeTorque = brakeTorque;
+            }
+        }
+
+        /// <summary>
+        /// Which of its jobs the brake key is doing this frame. It engages on a brake held against a
+        /// closed throttle with the car under <see cref="VehicleTuning.ReverseEngageSpeedMs"/>, below
+        /// which there is nothing left for it to brake; it lets go the moment either of the keys it
+        /// shares says otherwise, which is throttle being asked for or the brake being released. A brake
+        /// held at or above the engage speed leaves the latch as it was, and that sliver of hysteresis is
+        /// what keeps a car backing out of a wall backing out of it instead of changing its mind twice
+        /// the speed goes one way and then the other.
+        /// </summary>
+        private void UpdateReverseLatch(float throttle, float brake, float forwardSpeed)
+        {
+            if (brake > 0.01f && throttle < 0.01f && forwardSpeed < tuning.ReverseEngageSpeedMs)
+            {
+                _reversing = true;
+            }
+            else if (throttle > 0.01f || brake <= 0.01f)
+            {
+                _reversing = false;
+            }
+        }
+
+        /// <summary>
+        /// Write a sideways stiffness onto the rear WheelColliders, and only when it differs from
+        /// what is already on them — friction curves are copied structs, so handing Unity a new one
+        /// every fixed step of a held handbrake would be work for nothing.
+        /// </summary>
+        private void ApplyRearSidewaysGrip(float stiffness)
+        {
+            // NaN until the first control frame, and Approximately is false against NaN.
+            if (Mathf.Approximately(_rearSidewaysStiffness, stiffness)) return;
+            _rearSidewaysStiffness = stiffness;
+
+            for (int i = 0; i < 4; i++)
+            {
+                if (IsFront[i] || _wheels[i] == null) continue;
+
+                var side = _wheels[i].sidewaysFriction;
+                side.stiffness = stiffness;
+                _wheels[i].sidewaysFriction = side;
             }
         }
 
@@ -314,6 +559,9 @@ namespace OpenWheelRacer
         /// editor referee (and future PlayMode tests) to drive the car
         /// deterministically after <see cref="StepTestFrame"/>.
         /// </summary>
+        /// <summary>Set by RaceSession from RaceFlow: true during the countdown and once this car has finished.</summary>
+        public bool DriveLocked;
+
         public void SetTestControls(float throttle, float brake, float steer, bool handbrake = false)
         {
             _testControls = true;
@@ -339,6 +587,15 @@ namespace OpenWheelRacer
         }
 
         /// <summary>
+        /// Raised at the end of every <see cref="ResetToSpawn"/>, whoever asked for it — the R key, the
+        /// session's automatic recovery, or anything else that puts the car back on the pose it was armed
+        /// with. A listener cannot tell a body that has been carried from a body that has been driven any
+        /// other way, and <see cref="OpenWheelRacer.Race.RaceSession"/> keeps an odometer of how far the
+        /// car has come, in which metres it was picked up and put down are not metres it travelled.
+        /// </summary>
+        public event System.Action SpawnReset;
+
+        /// <summary>
         /// Capture the current pose as the reset target. Start() does this in
         /// play; editor harnesses call it explicitly after placing the car.
         /// </summary>
@@ -354,8 +611,17 @@ namespace OpenWheelRacer
             _rigidbody.angularVelocity = Vector3.zero;
             _rigidbody.position = _spawnPosition;
             _rigidbody.rotation = _spawnRotation;
+            transform.SetPositionAndRotation(_spawnPosition, _spawnRotation);
             _currentSteerAngle = 0f;
+            // The reset is the one way out of a jam that does not go through the drivetrain, so the
+            // reverse latch has to come off with it: a car put back on the grid is not backing at it.
+            _reversing = false;
+            _currentForwardSpeed = 0f;
             Debug.Log("[VehicleController] Reset to spawn pose.");
+
+            // Last, so anything listening reads the body where it has actually been put rather than where
+            // it happened to be when the reset was asked for.
+            SpawnReset?.Invoke();
         }
     }
 }

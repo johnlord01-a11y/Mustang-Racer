@@ -26,3 +26,6 @@
 # OS junk
 .DS_Store
 Thumbs.db
+
+# Local backups (not source)
+/[Bb]ackups/
