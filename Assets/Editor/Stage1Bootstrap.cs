@@ -301,11 +301,11 @@ namespace OpenWheelRacer.EditorTools
             {
                 Fail("Sandbox.unity invalid after reopen");
             }
-            else if (UnityEngine.Object.FindFirstObjectByType<VehicleController>() == null)
+            else if (UnityEngine.Object.FindAnyObjectByType<VehicleController>() == null)
             {
                 Fail("Sandbox has no VehicleController instance");
             }
-            else if (UnityEngine.Object.FindFirstObjectByType<ChaseCamera>() == null)
+            else if (UnityEngine.Object.FindAnyObjectByType<ChaseCamera>() == null)
             {
                 Fail("Sandbox has no ChaseCamera");
             }

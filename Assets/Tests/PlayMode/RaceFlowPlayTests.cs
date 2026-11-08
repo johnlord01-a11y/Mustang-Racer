@@ -31,7 +31,7 @@ namespace OpenWheelRacer.Tests.PlayMode
                 SceneManager.LoadScene(RaceBootstrap.TrackSceneName);
                 yield return WaitForFrames(SceneLoadFrames);
 
-                RaceSession session = Object.FindFirstObjectByType<RaceSession>();
+                RaceSession session = Object.FindAnyObjectByType<RaceSession>();
                 Assert.IsNotNull(session, "no RaceSession in the track scene");
                 Assert.IsNotNull(session.Flow, "the session has no race flow");
                 Assert.AreEqual(RaceFlow.DefaultLaps, session.Flow.TotalLaps, "default race is 3 laps");
@@ -102,16 +102,16 @@ namespace OpenWheelRacer.Tests.PlayMode
 
                 for (int round = 1; round <= 2; round++)
                 {
-                    RaceSession before = Object.FindFirstObjectByType<RaceSession>();
+                    RaceSession before = Object.FindAnyObjectByType<RaceSession>();
                     Assert.IsNotNull(before, $"round {round}: no session before restart");
 
-                    CockpitView oldCockpit = Object.FindFirstObjectByType<CockpitView>();
+                    CockpitView oldCockpit = Object.FindAnyObjectByType<CockpitView>();
                     if (oldCockpit != null) oldCockpit.SetCockpit(false);
 
                     GamePause.RestartActiveScene();
                     yield return WaitForFrames(SceneLoadFrames);
 
-                    RaceSession[] sessions = Object.FindObjectsByType<RaceSession>(FindObjectsSortMode.None);
+                    RaceSession[] sessions = Object.FindObjectsByType<RaceSession>();
                     Assert.AreEqual(1, sessions.Length, $"round {round}: expected exactly one session");
                     RaceSession session = sessions[0];
                     Assert.AreNotSame(before, session, $"round {round}: the session was not rebuilt");
@@ -123,7 +123,7 @@ namespace OpenWheelRacer.Tests.PlayMode
                     Assert.IsTrue(session.Car.DriveLocked, $"round {round}: player not held for the countdown");
                     Assert.AreEqual(1f, Time.timeScale, 1e-4f, $"round {round}: clock stopped");
 
-                    CockpitView[] cockpits = Object.FindObjectsByType<CockpitView>(FindObjectsSortMode.None);
+                    CockpitView[] cockpits = Object.FindObjectsByType<CockpitView>();
                     Assert.AreEqual(1, cockpits.Length, $"round {round}: expected one cockpit view");
                     Assert.IsTrue(cockpits[0].CockpitActive, $"round {round}: cockpit is not the default view again");
 
@@ -149,8 +149,7 @@ namespace OpenWheelRacer.Tests.PlayMode
             ResetHooks();
             Scene scene = SceneManager.GetActiveScene();
             if (scene.name != RaceBootstrap.TrackSceneName) return;
-            foreach (GameObject go in Object.FindObjectsByType<GameObject>(
-                         FindObjectsInactive.Include, FindObjectsSortMode.None))
+            foreach (GameObject go in Object.FindObjectsByType<GameObject>(FindObjectsInactive.Include))
             {
                 if (go != null && go.scene == scene && go.transform.parent == null) Object.Destroy(go);
             }

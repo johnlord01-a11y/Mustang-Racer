@@ -620,12 +620,12 @@ namespace OpenWheelRacer.Tests.PlayMode
         private void AssertRaceAssembled(string when)
         {
             RaceSession[] sessions =
-                Object.FindObjectsByType<RaceSession>(FindObjectsSortMode.None);
+                Object.FindObjectsByType<RaceSession>();
             Assert.AreEqual(1, sessions.Length, $"{when}: expected exactly one RaceSession");
             Assert.IsNotNull(sessions[0].Car, $"{when}: the session is not driving a car");
 
             TrackBuilder[] tracks =
-                Object.FindObjectsByType<TrackBuilder>(FindObjectsSortMode.None);
+                Object.FindObjectsByType<TrackBuilder>();
             Assert.AreEqual(1, tracks.Length, $"{when}: expected exactly one built track");
             Assert.AreEqual(TrackLayout.DefaultCheckpointCount, tracks[0].Checkpoints.Length,
                 $"{when}: the track did not come with its checkpoints");
@@ -634,7 +634,7 @@ namespace OpenWheelRacer.Tests.PlayMode
             // drives: the opponents are somebody else's business, and the camera is checked against the
             // session's own car rather than against whichever one the object lookup returned first.
             VehicleController[] cars =
-                Object.FindObjectsByType<VehicleController>(FindObjectsSortMode.None);
+                Object.FindObjectsByType<VehicleController>();
             int playerCars = 0;
             foreach (VehicleController car in cars)
             {
@@ -647,16 +647,16 @@ namespace OpenWheelRacer.Tests.PlayMode
             Assert.AreEqual(1, playerCars, $"{when}: expected exactly one human-driven car");
 
             ChaseCamera[] chases =
-                Object.FindObjectsByType<ChaseCamera>(FindObjectsSortMode.None);
+                Object.FindObjectsByType<ChaseCamera>();
             Assert.AreEqual(1, chases.Length, $"{when}: expected exactly one chase camera");
             Assert.IsNotNull(chases[0].GetComponent<Camera>(),
                 $"{when}: the chase rig is not on a Camera, so nothing renders through it");
             Assert.AreSame(sessions[0].Car.transform, chases[0].target,
                 $"{when}: the chase camera is not aimed at the player's car");
 
-            Assert.AreEqual(1, Object.FindObjectsByType<RaceHud>(FindObjectsSortMode.None).Length,
+            Assert.AreEqual(1, Object.FindObjectsByType<RaceHud>().Length,
                 $"{when}: expected exactly one HUD");
-            Assert.AreEqual(1, Object.FindObjectsByType<GamePause>(FindObjectsSortMode.None).Length,
+            Assert.AreEqual(1, Object.FindObjectsByType<GamePause>().Length,
                 $"{when}: expected exactly one pause menu");
         }
 
@@ -688,8 +688,7 @@ namespace OpenWheelRacer.Tests.PlayMode
                 return;
             }
 
-            foreach (GameObject gameObject in Object.FindObjectsByType<GameObject>(
-                         FindObjectsInactive.Include, FindObjectsSortMode.None))
+            foreach (GameObject gameObject in Object.FindObjectsByType<GameObject>(FindObjectsInactive.Include))
             {
                 if (gameObject != null && gameObject.scene == scene
                     && gameObject.transform.parent == null)

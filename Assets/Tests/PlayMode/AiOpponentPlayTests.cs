@@ -741,8 +741,7 @@ namespace OpenWheelRacer.Tests.PlayMode
                 return;
             }
 
-            foreach (GameObject gameObject in Object.FindObjectsByType<GameObject>(
-                         FindObjectsInactive.Include, FindObjectsSortMode.None))
+            foreach (GameObject gameObject in Object.FindObjectsByType<GameObject>(FindObjectsInactive.Include))
             {
                 if (gameObject != null && gameObject.scene == scene
                     && gameObject.transform.parent == null)
@@ -784,7 +783,7 @@ namespace OpenWheelRacer.Tests.PlayMode
                     "the track scene never became the active scene");
 
                 RaceSession[] sessions =
-                    Object.FindObjectsByType<RaceSession>(FindObjectsSortMode.None);
+                    Object.FindObjectsByType<RaceSession>();
                 Assert.AreEqual(1, sessions.Length, "the boot left this scene with exactly one session");
                 Assert.IsNotNull(sessions[0].Car, "the session the boot built is not driving a car");
 
