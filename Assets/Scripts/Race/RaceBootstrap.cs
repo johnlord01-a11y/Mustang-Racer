@@ -153,6 +153,7 @@ namespace OpenWheelRacer.Race
 
             var session = root.AddComponent<RaceSession>();
             root.AddComponent<RaceHud>();
+            root.AddComponent<Minimap>();
             root.AddComponent<GamePause>();
             session.Init(track, car);
 
