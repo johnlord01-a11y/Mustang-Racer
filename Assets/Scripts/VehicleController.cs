@@ -22,6 +22,11 @@ namespace OpenWheelRacer
         private readonly WheelCollider[] _wheels = new WheelCollider[4]; // 0=FL 1=FR 2=RL 3=RR
         private static readonly bool[] IsFront = { true, true, false, false };
 
+        // PhysX WheelColliders with motorTorque exactly 0 pin a parked rigidbody
+        // against hits; a token torque keeps the wheel solver awake without adding
+        // meaningful drive (Ctl8: 1e-4 Nm raised a 21.6 m/s hit from ~0.3 to ~11 m/s).
+        private const float RestingMotorTorque = 0.01f;
+
         private VehicleInput _input;
         private Rigidbody _rigidbody;
         private Vector3 _spawnPosition;
@@ -29,6 +34,7 @@ namespace OpenWheelRacer
 
         private float _currentSteerAngle;
         private float _currentSpeed;
+        private bool _restingWheelTorqueArmed;
 
         /// <summary>
         /// Signed speed along the chassis forward axis in m/s, taken with the rest of the control
@@ -463,6 +469,27 @@ namespace OpenWheelRacer
             // W taken by a car already on its way backwards: discs first, drive once the roll is gone.
             bool rollingBackwards = throttle > 0.01f && forwardSpeed < BackwardRollCutoverMs;
 
+            bool idle = throttle < 0.01f && brake < 0.01f && !handbrake && !_reversing;
+            bool parked = Mathf.Abs(forwardSpeed) < tuning.ReverseEngageSpeedMs;
+            if (idle && parked)
+            {
+                // Leave the last resting motor/brake on the colliders. Rewriting
+                // them every FixedUpdate is what kept a 1e-4 Nm rest torque from
+                // matching Ctl8 (controller disabled after setting the same value).
+                if (!_restingWheelTorqueArmed)
+                {
+                    for (int i = 0; i < 4; i++)
+                    {
+                        _wheels[i].motorTorque = RestingMotorTorque;
+                        _wheels[i].brakeTorque = 0f;
+                    }
+                    _restingWheelTorqueArmed = true;
+                }
+                return;
+            }
+
+            _restingWheelTorqueArmed = false;
+
             for (int i = 0; i < 4; i++)
             {
                 WheelCollider w = _wheels[i];
@@ -475,6 +502,11 @@ namespace OpenWheelRacer
                 else
                 {
                     w.motorTorque = driven && !rollingBackwards ? driveTorque : 0f;
+                }
+
+                if (Mathf.Abs(w.motorTorque) < RestingMotorTorque)
+                {
+                    w.motorTorque = RestingMotorTorque;
                 }
 
                 float brakeTorque = 0f;
@@ -496,7 +528,11 @@ namespace OpenWheelRacer
                 }
                 else if (throttle < 0.01f)
                 {
-                    brakeTorque = tuning.EngineBrakeTorque; // lift-off drag
+                    // Full lift-off drag only while already rolling so a parked
+                    // car is not extra-pinned on top of the wheel-solver issue.
+                    float fade = Mathf.Clamp01(Mathf.Abs(forwardSpeed) /
+                        Mathf.Max(0.001f, tuning.ReverseEngageSpeedMs));
+                    brakeTorque = tuning.EngineBrakeTorque * fade;
                 }
                 if (handbrake && !IsFront[i])
                 {
