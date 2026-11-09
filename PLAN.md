@@ -10,10 +10,10 @@ Unity 6000.6.6f1. WheelCollider car (tuning ScriptableObject), procedural rounde
 
 Scenes: `Boot`, `Garage`, `Track_Proto`, `Sandbox`. Default spawn path is `RaceBootstrap` assembling `Track_Proto` (player + 3 opponents + HUD + pause).
 
-## Tests (as of the finish-plan pass)
+## Tests (verified 2026-11-09 at 0e65d9a: EditMode 82/82, PlayMode 56/56, headless, exit 0)
 
-- **EditMode (63):** layout/progress/laps/flow/time format/cockpit-capture parse, plus earlier vehicle/input checks.
-- **PlayMode (53 total):** handling, race bootstrap/flow, AI opponents (spawn, a lap, independent input, stuck recover), cockpit, track continuity, wall recovery (head-on, 30°, **10° glance at ~35 m/s**), car contact. One remaining ignore: `Ctl3_BoxIntoCar_Default` (plain-box mover loses speed to ground friction). Free-rolling car-into-car contact now asserts 15% of impact speed (including Ctl4).
+- **EditMode (82):** layout/progress/laps/flow/time format/cockpit-capture parse, minimap, best-lap store, AI profiles, settings, plus earlier vehicle/input checks.
+- **PlayMode (56):** handling, race bootstrap/flow, AI opponents (spawn, a lap, independent input, stuck recover), cockpit, track continuity, wall recovery (head-on, 30°, **10° glance at ~35 m/s**), car body/visibility, car contact. `Ctl3_BoxIntoCar_Default` fixed and passing — the box mover now slides friction-free so it arrives at a valid impact speed. Free-rolling car-into-car contact asserts 15% of impact speed (including Ctl4). No ignores remain.
 
 ## Done relative to the old staged plan
 
@@ -21,8 +21,8 @@ Stage 0–1 (foundation, drivetrain) were committed first. Stages 2–6 work lan
 
 ## Still open
 
-1. **Ctl3** — honest box-into-car fixture (mover must arrive at a valid impact speed).
-2. **Content (old Stage 5)** — better placeholder body, more checkpoints, elevation, road decals, editor track builder, minimap.
-3. **Progression extras never built** — `SaveBestLap` / PlayerPrefs, `AIDriverProfile` ScriptableObject, named `TrafficRules` (AI is pure pursuit today), quality/timescale settings panel beyond pause.
-4. **Play feel** — signed-off M1 checklist (phone-stopwatch laps, 60 fps at 1080p, gamepad unplug, etc.) is still a manual pass, not a test suite.
-5. **Housekeeping** — leftover CS0618 in some EditMode/PlayMode test helpers and `Assets/Editor/Stage1Bootstrap.cs` (not the Linux player build).
+1. **Content (old Stage 5 remainder)** — more checkpoints, elevation, road decals, editor track builder. (Placeholder body and minimap shipped.)
+2. **Traffic rules** — AI is still pure pursuit; named `TrafficRules` (yielding, corner etiquette) never built.
+3. **Play feel** — signed-off M1 checklist (phone-stopwatch laps, 60 fps at 1080p, gamepad unplug, etc.) is still a manual pass, not a test suite.
+
+Done since the finish-plan pass: Ctl3 honest fixture (frictionless box mover, passing), CS0618 sweep (zero `FindObjectsOfType` left), best-lap persistence, `AIDriverProfile` SOs, quality/VSync pause settings, minimap, F1-style body with halo.
