@@ -305,24 +305,27 @@ namespace OpenWheelRacer.Race
             Renderer[] renderers = bodyRoot.GetComponentsInChildren<Renderer>(true);
             for (int i = 0; i < renderers.Length; i++)
             {
-                // The halo is the one piece that is not team colour: every car on
-                // the grid wears the same dark grey safety structure.
-                if (IsUnderHalo(renderers[i].transform, bodyRoot)) continue;
+                // The halo and the windshield are the pieces that are not team
+                // colour: every car wears the same dark grey safety structure and
+                // the same smoked glass.
+                if (IsExcludedFromPaint(renderers[i].transform, bodyRoot)) continue;
 
                 renderers[i].sharedMaterial = material;
             }
         }
 
         /// <summary>
-        /// Whether <paramref name="node"/> is one of the halo pieces hanging under the
-        /// body root, walking up just as far as that root so no other part of the car
-        /// can claim the name.
+        /// Whether <paramref name="node"/> is one of the pieces that keep their own
+        /// finish — the halo's dark grey and the windshield's smoked glass — walking
+        /// up just as far as the body root so no other part of the car can claim
+        /// the name.
         /// </summary>
-        private static bool IsUnderHalo(Transform node, Transform bodyRoot)
+        private static bool IsExcludedFromPaint(Transform node, Transform bodyRoot)
         {
             while (node != null && node != bodyRoot)
             {
                 if (node.name == VehicleController.HaloRootName) return true;
+                if (node.name == VehicleController.GlassRootName) return true;
                 node = node.parent;
             }
 

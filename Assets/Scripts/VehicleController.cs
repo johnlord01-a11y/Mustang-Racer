@@ -319,17 +319,29 @@ namespace OpenWheelRacer
         /// <summary>Titanium grey of the halo, on every car whatever else is painted.</summary>
         public static readonly Color HaloColor = new Color(0.16f, 0.16f, 0.18f);
 
+        /// <summary>
+        /// Name of the empty the tinted windshield hangs under. Like the halo it is
+        /// exempt from <c>AiField</c>'s team-colour pass — glass is glass on every
+        /// car — and it is kept below the cockpit sight line so the driver sees the
+        /// track through the top of it, not smoked plastic.
+        /// </summary>
+        public const string GlassRootName = "Windshield";
+
+        /// <summary>Smoked-glass tint of the windshield, same on every car.</summary>
+        public static readonly Color GlassColor = new Color(0.09f, 0.11f, 0.14f);
+
         private static readonly string[] BodyShaderNames =
         {
             "Universal Render Pipeline/Lit", "Standard",
         };
 
         /// <summary>
-        /// A placeholder open-wheel car cut out of primitives: a narrow tub with a
-        /// pointed nose, stubby sidepods, an engine cover with an airbox over the
-        /// driver's head, a halo over the cockpit, a rear wing on two endplates and a
-        /// front wing with its own endplates. Wheels stay exposed outside the body —
-        /// that is what makes it read as an open-wheel car.
+        /// A placeholder F1 car cut out of primitives: a narrow tub with a pointed
+        /// nose, stubby sidepods, an engine cover with an airbox over the driver's
+        /// head, a halo over a closed-in cockpit — tinted windshield rising below the
+        /// sight line, painted cowl and headrest shoulders around the helmet — a rear
+        /// wing on two endplates and a front wing with its own endplates. Wheels stay
+        /// exposed outside the body — that is what makes it read as an open-wheel car.
         ///
         /// Every piece is pure graphics: each primitive's collider is destroyed the
         /// moment it is created, so the car keeps wearing exactly one box and four
@@ -357,6 +369,7 @@ namespace OpenWheelRacer
             AddVisualPart(root.transform, "CockpitHelmet", PrimitiveType.Sphere,
                 new Vector3(0f, 0.60f, 0.28f), new Vector3(0.28f, 0.28f, 0.28f), paint);
             BuildHalo(root.transform);
+            BuildCockpit(root.transform, paint);
             AddVisualPart(root.transform, "Airbox", PrimitiveType.Cube,
                 new Vector3(0f, 0.74f, -0.08f), new Vector3(0.24f, 0.30f, 0.34f), paint);
             AddVisualPart(root.transform, "EngineCoverUpper", PrimitiveType.Cube,
@@ -429,6 +442,36 @@ namespace OpenWheelRacer
         }
 
         /// <summary>
+        /// The closed-in cockpit: a group named "Windshield" carrying one angled
+        /// smoked-glass panel that rises from the cowl to just under the halo's front
+        /// band, its top edge held below the cockpit sight line (y = 0.78 at the eye)
+        /// so a straight-ahead view passes over the glass; plus body-coloured cowl
+        /// and cockpit-side shoulders and a padded headrest behind the helmet, so
+        /// the opening around the driver reads as sealed bodywork rather than a
+        /// bathtub. The windshield keeps its own group because — like the halo —
+        /// <c>AiField</c> must not paint it team colour.
+        /// </summary>
+        private static void BuildCockpit(Transform body, Material paint)
+        {
+            Material glass = CreatePaint("Car_GlassMaterial", GlassColor);
+            Transform windshield = AddVisualGroup(body, GlassRootName);
+
+            var glassPanel = AddVisualPart(windshield, "WindshieldGlass", PrimitiveType.Cube,
+                new Vector3(0f, 0.60f, 0.58f), new Vector3(0.56f, 0.34f, 0.05f), glass);
+            // Lean the panel back toward the driver: top edge y ~ 0.74, below the eye.
+            glassPanel.localRotation = Quaternion.Euler(-35f, 0f, 0f);
+
+            AddVisualPart(body, "CockpitCowl", PrimitiveType.Cube,
+                new Vector3(0f, 0.50f, 0.52f), new Vector3(0.50f, 0.18f, 0.28f), paint);
+            AddVisualPart(body, "CockpitSide_L", PrimitiveType.Cube,
+                new Vector3(-0.30f, 0.55f, 0.16f), new Vector3(0.13f, 0.20f, 0.62f), paint);
+            AddVisualPart(body, "CockpitSide_R", PrimitiveType.Cube,
+                new Vector3(0.30f, 0.55f, 0.16f), new Vector3(0.13f, 0.20f, 0.62f), paint);
+            AddVisualPart(body, "Headrest", PrimitiveType.Cube,
+                new Vector3(0f, 0.53f, -0.04f), new Vector3(0.46f, 0.17f, 0.30f), paint);
+        }
+
+        /// <summary>
         /// An empty named <paramref name="name"/> under <paramref name="parent"/> to
         /// hang several visual pieces on as one unit. Nothing to strip the collider
         /// from — a bare GameObject never had one.
@@ -444,9 +487,10 @@ namespace OpenWheelRacer
         /// One visual piece: a primitive under <paramref name="parent"/>, painted when
         /// there is paint to paint with, and stripped of the collider Unity insists on
         /// giving every primitive — a car whose wings collided with the wall would be
-        /// a car steered by its front wing.
+        /// a car steered by its front wing. Returns the part's transform so a caller
+        /// that needs one (the leaned-back windshield) can pose it after the fact.
         /// </summary>
-        private static void AddVisualPart(Transform parent, string name, PrimitiveType type,
+        private static Transform AddVisualPart(Transform parent, string name, PrimitiveType type,
             Vector3 localPos, Vector3 localScale, Material paint)
         {
             var part = GameObject.CreatePrimitive(type);
@@ -472,6 +516,8 @@ namespace OpenWheelRacer
                     renderer.sharedMaterial = paint;
                 }
             }
+
+            return part.transform;
         }
 
         /// <summary>
