@@ -10,7 +10,7 @@ Unity 6000.6.6f1. WheelCollider car (tuning ScriptableObject), procedural rounde
 
 Scenes: `Boot`, `Garage`, `Track_Proto`, `Sandbox`. Default spawn path is `RaceBootstrap` assembling `Track_Proto` (player + 3 opponents + HUD + pause).
 
-## Tests (verified 2026-11-09 at 0e65d9a: EditMode 82/82, PlayMode 56/56, headless, exit 0)
+## Tests (verified 2026-11-09 at 9b1ccbf: EditMode 82/82, PlayMode 56/56, headless, exit 0)
 
 - **EditMode (82):** layout/progress/laps/flow/time format/cockpit-capture parse, minimap, best-lap store, AI profiles, settings, plus earlier vehicle/input checks.
 - **PlayMode (56):** handling, race bootstrap/flow, AI opponents (spawn, a lap, independent input, stuck recover), cockpit, track continuity, wall recovery (head-on, 30°, **10° glance at ~35 m/s**), car body/visibility, car contact. `Ctl3_BoxIntoCar_Default` fixed and passing — the box mover now slides friction-free so it arrives at a valid impact speed. Free-rolling car-into-car contact asserts 15% of impact speed (including Ctl4). No ignores remain.
@@ -25,4 +25,4 @@ Stage 0–1 (foundation, drivetrain) were committed first. Stages 2–6 work lan
 2. **Traffic rules** — AI is still pure pursuit; named `TrafficRules` (yielding, corner etiquette) never built.
 3. **Play feel** — signed-off M1 checklist (phone-stopwatch laps, 60 fps at 1080p, gamepad unplug, etc.) is still a manual pass, not a test suite.
 
-Done since the finish-plan pass: Ctl3 honest fixture (frictionless box mover, passing), CS0618 sweep (zero `FindObjectsOfType` left), best-lap persistence, `AIDriverProfile` SOs, quality/VSync pause settings, minimap, F1-style body with halo.
+Done since the finish-plan pass: Ctl3 honest fixture (frictionless box mover, passing), CS0618 sweep (zero `FindObjectsOfType` left), best-lap persistence, `AIDriverProfile` SOs, quality/VSync pause settings, minimap, F1-style body with halo, closed cockpit (windshield below the sight line, cowl, shoulders, headrest; halo and glass exempt from team-colour paint).
