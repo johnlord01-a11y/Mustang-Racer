@@ -309,6 +309,16 @@ namespace OpenWheelRacer
         /// <summary>Body colour of a car nobody has painted: racing red.</summary>
         public static readonly Color DefaultBodyColor = new Color(0.72f, 0.09f, 0.10f);
 
+        /// <summary>
+        /// Name of the empty the halo pieces hang under. Public because
+        /// <c>AiField</c> paints a field car body-colour piece by piece and the halo
+        /// is the one piece that stays dark grey on every car.
+        /// </summary>
+        public const string HaloRootName = "Halo";
+
+        /// <summary>Titanium grey of the halo, on every car whatever else is painted.</summary>
+        public static readonly Color HaloColor = new Color(0.16f, 0.16f, 0.18f);
+
         private static readonly string[] BodyShaderNames =
         {
             "Universal Render Pipeline/Lit", "Standard",
@@ -343,12 +353,10 @@ namespace OpenWheelRacer
             // wheels hang out in the open past the bodywork.
             AddVisualPart(root.transform, "Tub", PrimitiveType.Cube,
                 new Vector3(0f, 0.33f, -0.05f), new Vector3(0.55f, 0.5f, 2.2f), paint);
-            AddVisualPart(root.transform, "Nose", PrimitiveType.Cube,
-                new Vector3(0f, 0.30f, 1.45f), new Vector3(0.30f, 0.24f, 0.9f), paint);
+            BuildNose(root.transform, paint);
             AddVisualPart(root.transform, "CockpitHelmet", PrimitiveType.Sphere,
                 new Vector3(0f, 0.60f, 0.28f), new Vector3(0.28f, 0.28f, 0.28f), paint);
-            AddVisualPart(root.transform, "Halo", PrimitiveType.Sphere,
-                new Vector3(0f, 0.56f, 0.30f), new Vector3(0.52f, 0.16f, 0.62f), paint);
+            BuildHalo(root.transform);
             AddVisualPart(root.transform, "Airbox", PrimitiveType.Cube,
                 new Vector3(0f, 0.74f, -0.08f), new Vector3(0.24f, 0.30f, 0.34f), paint);
             AddVisualPart(root.transform, "EngineCoverUpper", PrimitiveType.Cube,
@@ -371,6 +379,65 @@ namespace OpenWheelRacer
                 new Vector3(-0.70f, 0.17f, 1.85f), new Vector3(0.05f, 0.15f, 0.42f), paint);
             AddVisualPart(root.transform, "FrontWingEndplate_R", PrimitiveType.Cube,
                 new Vector3(0.70f, 0.17f, 1.85f), new Vector3(0.05f, 0.15f, 0.42f), paint);
+        }
+
+        /// <summary>
+        /// The nose: an empty named "Nose" carrying a stack of cubes that get
+        /// narrower and lower toward the front, run long from the front of the tub
+        /// out to the front wing so the whole front reads as one tapered nose into
+        /// the wing. Kept under y = 0.6 and below the cockpit sight line — the
+        /// driver looks over this, not through it.
+        /// </summary>
+        private static void BuildNose(Transform body, Material paint)
+        {
+            Transform nose = AddVisualGroup(body, "Nose");
+
+            AddVisualPart(nose, "NoseRoot", PrimitiveType.Cube,
+                new Vector3(0f, 0.40f, 1.02f), new Vector3(0.34f, 0.36f, 0.34f), paint);
+            AddVisualPart(nose, "NoseMid", PrimitiveType.Cube,
+                new Vector3(0f, 0.35f, 1.34f), new Vector3(0.28f, 0.30f, 0.34f), paint);
+            AddVisualPart(nose, "NoseFront", PrimitiveType.Cube,
+                new Vector3(0f, 0.30f, 1.63f), new Vector3(0.22f, 0.24f, 0.30f), paint);
+            AddVisualPart(nose, "NoseTip", PrimitiveType.Cube,
+                new Vector3(0f, 0.24f, 1.86f), new Vector3(0.16f, 0.15f, 0.24f), paint);
+        }
+
+        /// <summary>
+        /// The halo: an empty named "Halo" wearing thin dark grey pieces — two side
+        /// rails at x = +/-0.40, a front band and a rear cross bar joining them into
+        /// a hoop around the driver, and one slim centre pillar from the front of the
+        /// hoop down to the tub. The hoop sits with its lower edge above the cockpit
+        /// sight line and the pillar tops out below it, so a straight-ahead view from
+        /// <see cref="CockpitView.EyeLocal"/> passes between them and sees the track,
+        /// not the safety structure.
+        /// </summary>
+        private static void BuildHalo(Transform body)
+        {
+            Material dark = CreateHaloPaint();
+            Transform halo = AddVisualGroup(body, HaloRootName);
+
+            AddVisualPart(halo, "HaloRail_L", PrimitiveType.Cube,
+                new Vector3(-0.40f, 0.83f, 0.02f), new Vector3(0.05f, 0.06f, 0.98f), dark);
+            AddVisualPart(halo, "HaloRail_R", PrimitiveType.Cube,
+                new Vector3(0.40f, 0.83f, 0.02f), new Vector3(0.05f, 0.06f, 0.98f), dark);
+            AddVisualPart(halo, "HaloFrontBand", PrimitiveType.Cube,
+                new Vector3(0f, 0.83f, 0.50f), new Vector3(0.85f, 0.06f, 0.08f), dark);
+            AddVisualPart(halo, "HaloRearBar", PrimitiveType.Cube,
+                new Vector3(0f, 0.83f, -0.46f), new Vector3(0.85f, 0.06f, 0.08f), dark);
+            AddVisualPart(halo, "HaloCentrePillar", PrimitiveType.Cube,
+                new Vector3(0f, 0.645f, 0.50f), new Vector3(0.06f, 0.25f, 0.07f), dark);
+        }
+
+        /// <summary>
+        /// An empty named <paramref name="name"/> under <paramref name="parent"/> to
+        /// hang several visual pieces on as one unit. Nothing to strip the collider
+        /// from — a bare GameObject never had one.
+        /// </summary>
+        private static Transform AddVisualGroup(Transform parent, string name)
+        {
+            var group = new GameObject(name);
+            group.transform.SetParent(parent, worldPositionStays: false);
+            return group.transform;
         }
 
         /// <summary>
@@ -416,6 +483,17 @@ namespace OpenWheelRacer
         /// </summary>
         private static Material CreateBodyPaint()
         {
+            return CreatePaint("Car_BodyMaterial", DefaultBodyColor);
+        }
+
+        /// <summary>The halo's shared dark grey, made the same way as the body paint.</summary>
+        private static Material CreateHaloPaint()
+        {
+            return CreatePaint("Car_HaloMaterial", HaloColor);
+        }
+
+        private static Material CreatePaint(string materialName, Color color)
+        {
             Shader shader = null;
             for (int i = 0; i < BodyShaderNames.Length && shader == null; i++)
             {
@@ -429,11 +507,11 @@ namespace OpenWheelRacer
 
             var material = new Material(shader)
             {
-                name = "Car_BodyMaterial",
+                name = materialName,
                 hideFlags = HideFlags.DontSave
             };
 
-            PaintColor(material, DefaultBodyColor);
+            PaintColor(material, color);
             return material;
         }
 
