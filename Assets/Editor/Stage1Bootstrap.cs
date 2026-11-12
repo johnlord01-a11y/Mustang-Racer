@@ -342,6 +342,14 @@ namespace OpenWheelRacer.EditorTools
 
         private static void AttachWheelVisuals(GameObject car)
         {
+            // Runtime BuildVisualBody already grows the four mesh wheels under
+            // BodyVisual/Wheels, bound to the WheelColliders — a second set here
+            // would be four more cylinders spinning over the top of them.
+            if (car.GetComponentsInChildren<WheelVisuals>(true).Length >= 4)
+            {
+                return;
+            }
+
             foreach (WheelCollider wheel in car.GetComponentsInChildren<WheelCollider>(true))
             {
                 var fx = new GameObject(wheel.name + "_Vis");

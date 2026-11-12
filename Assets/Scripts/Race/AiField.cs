@@ -245,9 +245,10 @@ namespace OpenWheelRacer.Race
 
         /// <summary>
         /// Give the car a body to be seen wearing in this opponent's colour. The body itself —
-        /// the open-wheel primitives of <see cref="VehicleController.BuildCar"/>'s
+        /// the lofted muscle-car convertible of <see cref="VehicleController.BuildCar"/>'s
         /// <see cref="VehicleController.BodyRootName"/> root — exists already; all this does is
-        /// make one material in the opponent's colour and put it on every piece of that body.
+        /// make one material in the opponent's colour and put it on every body panel, then
+        /// switch on the racing stripes the player's gloss-white car never wears.
         ///
         /// A car whose body root is missing (defence against a chassis built some other way)
         /// still gets the old fallback: one collider-free cube the size of the chassis box.
@@ -305,27 +306,35 @@ namespace OpenWheelRacer.Race
             Renderer[] renderers = bodyRoot.GetComponentsInChildren<Renderer>(true);
             for (int i = 0; i < renderers.Length; i++)
             {
-                // The halo and the windshield are the pieces that are not team
-                // colour: every car wears the same dark grey safety structure and
-                // the same smoked glass.
+                // Body panels only: the glass, black trim, lamps, interior, stripes
+                // and wheels (tyres and rims) are the pieces that are not team colour
+                // on any car, and the gloss black trunk panel lives under Lamps.
                 if (IsExcludedFromPaint(renderers[i].transform, bodyRoot)) continue;
 
                 renderers[i].sharedMaterial = material;
             }
+
+            // Stripes are an AI-only flourish: the player's white car wears none,
+            // so the builder ships the group switched off and the field switches
+            // it on.
+            Transform stripes = bodyRoot.Find(MustangMeshBuilder.StripeRootName);
+            if (stripes != null) stripes.gameObject.SetActive(true);
         }
 
         /// <summary>
         /// Whether <paramref name="node"/> is one of the pieces that keep their own
-        /// finish — the halo's dark grey and the windshield's smoked glass — walking
-        /// up just as far as the body root so no other part of the car can claim
-        /// the name.
+        /// finish — smoked glass, black trim and exhaust, red/amber lamps, interior,
+        /// the stripe set and the black wheels — walking up just as far as the body
+        /// root so no other part of the car can claim the name.
         /// </summary>
         private static bool IsExcludedFromPaint(Transform node, Transform bodyRoot)
         {
             while (node != null && node != bodyRoot)
             {
-                if (node.name == VehicleController.HaloRootName) return true;
-                if (node.name == VehicleController.GlassRootName) return true;
+                for (int i = 0; i < MustangMeshBuilder.NonPaintedGroups.Length; i++)
+                {
+                    if (node.name == MustangMeshBuilder.NonPaintedGroups[i]) return true;
+                }
                 node = node.parent;
             }
 

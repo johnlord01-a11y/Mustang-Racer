@@ -11,7 +11,7 @@ namespace OpenWheelRacer
     [RequireComponent(typeof(Camera))]
     public sealed class CockpitView : MonoBehaviour
     {
-        public static readonly Vector3 EyeLocal = new Vector3(0f, 0.78f, -0.35f);
+        public static readonly Vector3 EyeLocal = new Vector3(0f, 1.16f, -0.20f);
         public const float WheelTurnRatio = 6f;   // wheel degrees per road-wheel degree
         public const float NearClip = 0.05f;
         public const float GearBandKmh = 40f;     // virtual gear: one gear per 40 km/h band, 1..8
@@ -120,7 +120,8 @@ namespace OpenWheelRacer
             _rig = new GameObject("Cockpit_Rig").transform;
             _rig.SetParent(car, false);
 
-            // Steering wheel pivot sits low and centred (lower third of the view) so the road stays visible.
+            // Steering wheel pivot sits low and centred (lower edge of the view)
+            // so the road over the hood stays visible: eye at y 1.16, wheel top ~0.96.
             var carbon = MakeMaterial(new Color(0.09f, 0.09f, 0.10f));
             var red = MakeMaterial(new Color(0.9f, 0.15f, 0.1f));
             var blue = MakeMaterial(new Color(0.15f, 0.4f, 0.95f));
@@ -128,7 +129,7 @@ namespace OpenWheelRacer
             var green = MakeMaterial(new Color(0.2f, 0.8f, 0.3f));
             _wheel = new GameObject("Cockpit_Wheel").transform;
             _wheel.SetParent(_rig, false);
-            _wheel.localPosition = new Vector3(0f, 0.59f, 0.08f);
+            _wheel.localPosition = new Vector3(0f, 0.86f, 0.50f);
             // Rectangular carbon face with a flat bottom and upright grips either side.
             Piece("Wheel_Face", PrimitiveType.Cube, _wheel, new Vector3(0f, 0f, 0f), new Vector3(0.30f, 0.13f, 0.03f), carbon);
             Piece("Wheel_GripL", PrimitiveType.Cube, _wheel, new Vector3(-0.175f, 0.01f, 0f), new Vector3(0.05f, 0.19f, 0.045f), black);
@@ -149,9 +150,10 @@ namespace OpenWheelRacer
             Piece("Thumb_L", PrimitiveType.Capsule, _wheel, new Vector3(-0.145f, 0.045f, -0.03f), new Vector3(0.025f, 0.03f, 0.025f), navy, true);
             Piece("Thumb_R", PrimitiveType.Capsule, _wheel, new Vector3(0.145f, 0.045f, -0.03f), new Vector3(0.025f, 0.03f, 0.025f), navy, true);
 
-            // White cockpit sides framing the view left and right.
-            Piece("Cockpit_SideL", PrimitiveType.Cube, _rig, new Vector3(-0.42f, 0.62f, 0.2f), new Vector3(0.12f, 0.18f, 1.4f), white);
-            Piece("Cockpit_SideR", PrimitiveType.Cube, _rig, new Vector3(0.42f, 0.62f, 0.2f), new Vector3(0.12f, 0.18f, 1.4f), white);
+            // White beltline tub sides framing the view left and right, tops just
+            // under the eye so the road over the long hood stays unbroken.
+            Piece("Cockpit_SideL", PrimitiveType.Cube, _rig, new Vector3(-0.48f, 0.92f, 0.35f), new Vector3(0.10f, 0.22f, 1.5f), white);
+            Piece("Cockpit_SideR", PrimitiveType.Cube, _rig, new Vector3(0.48f, 0.92f, 0.35f), new Vector3(0.10f, 0.22f, 1.5f), white);
         }
 
         private static GameObject Piece(string name, PrimitiveType type, Transform parent, Vector3 pos, Vector3 scale, Material m, bool faceDriver = false)

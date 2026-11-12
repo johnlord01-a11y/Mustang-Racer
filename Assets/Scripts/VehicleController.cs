@@ -306,47 +306,23 @@ namespace OpenWheelRacer
         /// </summary>
         public const string BodyRootName = "BodyVisual";
 
-        /// <summary>Body colour of a car nobody has painted: racing red.</summary>
-        public static readonly Color DefaultBodyColor = new Color(0.72f, 0.09f, 0.10f);
+        /// <summary>Body colour of a car nobody has painted: the player's gloss white.</summary>
+        public static readonly Color DefaultBodyColor = new Color(0.92f, 0.92f, 0.93f);
 
         /// <summary>
-        /// Name of the empty the halo pieces hang under. Public because
-        /// <c>AiField</c> paints a field car body-colour piece by piece and the halo
-        /// is the one piece that stays dark grey on every car.
-        /// </summary>
-        public const string HaloRootName = "Halo";
-
-        /// <summary>Titanium grey of the halo, on every car whatever else is painted.</summary>
-        public static readonly Color HaloColor = new Color(0.16f, 0.16f, 0.18f);
-
-        /// <summary>
-        /// Name of the empty the tinted windshield hangs under. Like the halo it is
-        /// exempt from <c>AiField</c>'s team-colour pass — glass is glass on every
-        /// car — and it is kept below the cockpit sight line so the driver sees the
-        /// track through the top of it, not smoked plastic.
-        /// </summary>
-        public const string GlassRootName = "Windshield";
-
-        /// <summary>Smoked-glass tint of the windshield, same on every car.</summary>
-        public static readonly Color GlassColor = new Color(0.09f, 0.11f, 0.14f);
-
-        private static readonly string[] BodyShaderNames =
-        {
-            "Universal Render Pipeline/Lit", "Standard",
-        };
-
-        /// <summary>
-        /// A placeholder F1 car cut out of primitives: a narrow tub with a pointed
-        /// nose, stubby sidepods, an engine cover with an airbox over the driver's
-        /// head, a halo over a closed-in cockpit — tinted windshield rising below the
-        /// sight line, painted cowl and headrest shoulders around the helmet — a rear
-        /// wing on two endplates and a front wing with its own endplates. Wheels stay
-        /// exposed outside the body — that is what makes it read as an open-wheel car.
+        /// The car wears a generic 2015-2017-generation muscle-car convertible,
+        /// top down, built out of real meshes by <see cref="MustangMeshBuilder"/>
+        /// — a long power-bulged hood under flared front fenders, an open cabin
+        /// (windshield frame, two seats, two roll hoops, no soft top), muscular
+        /// rear haunches over tri-bar taillights and a gloss black tail panel.
+        /// The player's paint is gloss white; <c>AiField</c> puts opponents in
+        /// team colours on the same body and gives them their stripes.
         ///
-        /// Every piece is pure graphics: each primitive's collider is destroyed the
-        /// moment it is created, so the car keeps wearing exactly one box and four
-        /// wheels to physics, exactly as it did before there was anything to look at.
-        /// Nothing here reads <c>tuning</c>; changing the shape cannot change the drive.
+        /// Every piece is pure graphics: the builder destroys any collider the
+        /// moment it appears, so the car keeps wearing exactly one box and four
+        /// wheels to physics, exactly as it did before there was anything to look
+        /// at. Nothing here reads <c>tuning</c>; changing the shape cannot change
+        /// the drive.
         /// </summary>
         private void BuildVisualBody()
         {
@@ -358,208 +334,12 @@ namespace OpenWheelRacer
             var root = new GameObject(BodyRootName);
             root.transform.SetParent(transform, worldPositionStays: false);
 
-            Material paint = CreateBodyPaint();
-
-            // Chassis-local: +z nose, ground at y = 0, wheels at x = +/-0.75,
-            // z = +1.20 / -1.25. Everything below stays inside x = +/-0.7 so the
-            // wheels hang out in the open past the bodywork.
-            AddVisualPart(root.transform, "Tub", PrimitiveType.Cube,
-                new Vector3(0f, 0.33f, -0.05f), new Vector3(0.55f, 0.5f, 2.2f), paint);
-            BuildNose(root.transform, paint);
-            AddVisualPart(root.transform, "CockpitHelmet", PrimitiveType.Sphere,
-                new Vector3(0f, 0.60f, 0.28f), new Vector3(0.28f, 0.28f, 0.28f), paint);
-            BuildHalo(root.transform);
-            BuildCockpit(root.transform, paint);
-            AddVisualPart(root.transform, "Airbox", PrimitiveType.Cube,
-                new Vector3(0f, 0.74f, -0.08f), new Vector3(0.24f, 0.30f, 0.34f), paint);
-            AddVisualPart(root.transform, "EngineCoverUpper", PrimitiveType.Cube,
-                new Vector3(0f, 0.52f, -0.78f), new Vector3(0.42f, 0.34f, 0.9f), paint);
-            AddVisualPart(root.transform, "EngineCoverLower", PrimitiveType.Cube,
-                new Vector3(0f, 0.40f, -1.38f), new Vector3(0.36f, 0.24f, 0.6f), paint);
-            AddVisualPart(root.transform, "Sidepod_L", PrimitiveType.Cube,
-                new Vector3(-0.56f, 0.30f, -0.10f), new Vector3(0.40f, 0.36f, 1.2f), paint);
-            AddVisualPart(root.transform, "Sidepod_R", PrimitiveType.Cube,
-                new Vector3(0.56f, 0.30f, -0.10f), new Vector3(0.40f, 0.36f, 1.2f), paint);
-            AddVisualPart(root.transform, "RearWing", PrimitiveType.Cube,
-                new Vector3(0f, 0.82f, -1.62f), new Vector3(1.10f, 0.05f, 0.40f), paint);
-            AddVisualPart(root.transform, "RearWingEndplate_L", PrimitiveType.Cube,
-                new Vector3(-0.55f, 0.62f, -1.62f), new Vector3(0.05f, 0.42f, 0.45f), paint);
-            AddVisualPart(root.transform, "RearWingEndplate_R", PrimitiveType.Cube,
-                new Vector3(0.55f, 0.62f, -1.62f), new Vector3(0.05f, 0.42f, 0.45f), paint);
-            AddVisualPart(root.transform, "FrontWing", PrimitiveType.Cube,
-                new Vector3(0f, 0.12f, 1.85f), new Vector3(1.44f, 0.05f, 0.45f), paint);
-            AddVisualPart(root.transform, "FrontWingEndplate_L", PrimitiveType.Cube,
-                new Vector3(-0.70f, 0.17f, 1.85f), new Vector3(0.05f, 0.15f, 0.42f), paint);
-            AddVisualPart(root.transform, "FrontWingEndplate_R", PrimitiveType.Cube,
-                new Vector3(0.70f, 0.17f, 1.85f), new Vector3(0.05f, 0.15f, 0.42f), paint);
+            // The four WheelColliders go in so each visual wheel is bound to the
+            // sim pose it must shadow; the builder hangs the whole car — body,
+            // glass, trim, lamps, interior, stripes and wheels — under the root.
+            MustangMeshBuilder.BuildBody(root.transform, _wheels);
         }
 
-        /// <summary>
-        /// The nose: an empty named "Nose" carrying a stack of cubes that get
-        /// narrower and lower toward the front, run long from the front of the tub
-        /// out to the front wing so the whole front reads as one tapered nose into
-        /// the wing. Kept under y = 0.6 and below the cockpit sight line — the
-        /// driver looks over this, not through it.
-        /// </summary>
-        private static void BuildNose(Transform body, Material paint)
-        {
-            Transform nose = AddVisualGroup(body, "Nose");
-
-            AddVisualPart(nose, "NoseRoot", PrimitiveType.Cube,
-                new Vector3(0f, 0.40f, 1.02f), new Vector3(0.34f, 0.36f, 0.34f), paint);
-            AddVisualPart(nose, "NoseMid", PrimitiveType.Cube,
-                new Vector3(0f, 0.35f, 1.34f), new Vector3(0.28f, 0.30f, 0.34f), paint);
-            AddVisualPart(nose, "NoseFront", PrimitiveType.Cube,
-                new Vector3(0f, 0.30f, 1.63f), new Vector3(0.22f, 0.24f, 0.30f), paint);
-            AddVisualPart(nose, "NoseTip", PrimitiveType.Cube,
-                new Vector3(0f, 0.24f, 1.86f), new Vector3(0.16f, 0.15f, 0.24f), paint);
-        }
-
-        /// <summary>
-        /// The halo: an empty named "Halo" wearing thin dark grey pieces — two side
-        /// rails at x = +/-0.40, a front band and a rear cross bar joining them into
-        /// a hoop around the driver, and one slim centre pillar from the front of the
-        /// hoop down to the tub. The hoop sits with its lower edge above the cockpit
-        /// sight line and the pillar tops out below it, so a straight-ahead view from
-        /// <see cref="CockpitView.EyeLocal"/> passes between them and sees the track,
-        /// not the safety structure.
-        /// </summary>
-        private static void BuildHalo(Transform body)
-        {
-            Material dark = CreateHaloPaint();
-            Transform halo = AddVisualGroup(body, HaloRootName);
-
-            AddVisualPart(halo, "HaloRail_L", PrimitiveType.Cube,
-                new Vector3(-0.40f, 0.83f, 0.02f), new Vector3(0.05f, 0.06f, 0.98f), dark);
-            AddVisualPart(halo, "HaloRail_R", PrimitiveType.Cube,
-                new Vector3(0.40f, 0.83f, 0.02f), new Vector3(0.05f, 0.06f, 0.98f), dark);
-            AddVisualPart(halo, "HaloFrontBand", PrimitiveType.Cube,
-                new Vector3(0f, 0.83f, 0.50f), new Vector3(0.85f, 0.06f, 0.08f), dark);
-            AddVisualPart(halo, "HaloRearBar", PrimitiveType.Cube,
-                new Vector3(0f, 0.83f, -0.46f), new Vector3(0.85f, 0.06f, 0.08f), dark);
-            AddVisualPart(halo, "HaloCentrePillar", PrimitiveType.Cube,
-                new Vector3(0f, 0.645f, 0.50f), new Vector3(0.06f, 0.25f, 0.07f), dark);
-        }
-
-        /// <summary>
-        /// The closed-in cockpit: a group named "Windshield" carrying one angled
-        /// smoked-glass panel that rises from the cowl to just under the halo's front
-        /// band, its top edge held below the cockpit sight line (y = 0.78 at the eye)
-        /// so a straight-ahead view passes over the glass; plus body-coloured cowl
-        /// and cockpit-side shoulders and a padded headrest behind the helmet, so
-        /// the opening around the driver reads as sealed bodywork rather than a
-        /// bathtub. The windshield keeps its own group because — like the halo —
-        /// <c>AiField</c> must not paint it team colour.
-        /// </summary>
-        private static void BuildCockpit(Transform body, Material paint)
-        {
-            Material glass = CreatePaint("Car_GlassMaterial", GlassColor);
-            Transform windshield = AddVisualGroup(body, GlassRootName);
-
-            var glassPanel = AddVisualPart(windshield, "WindshieldGlass", PrimitiveType.Cube,
-                new Vector3(0f, 0.60f, 0.58f), new Vector3(0.56f, 0.34f, 0.05f), glass);
-            // Lean the panel back toward the driver: top edge y ~ 0.74, below the eye.
-            glassPanel.localRotation = Quaternion.Euler(-35f, 0f, 0f);
-
-            AddVisualPart(body, "CockpitCowl", PrimitiveType.Cube,
-                new Vector3(0f, 0.50f, 0.52f), new Vector3(0.50f, 0.18f, 0.28f), paint);
-            AddVisualPart(body, "CockpitSide_L", PrimitiveType.Cube,
-                new Vector3(-0.30f, 0.55f, 0.16f), new Vector3(0.13f, 0.20f, 0.62f), paint);
-            AddVisualPart(body, "CockpitSide_R", PrimitiveType.Cube,
-                new Vector3(0.30f, 0.55f, 0.16f), new Vector3(0.13f, 0.20f, 0.62f), paint);
-            AddVisualPart(body, "Headrest", PrimitiveType.Cube,
-                new Vector3(0f, 0.53f, -0.04f), new Vector3(0.46f, 0.17f, 0.30f), paint);
-        }
-
-        /// <summary>
-        /// An empty named <paramref name="name"/> under <paramref name="parent"/> to
-        /// hang several visual pieces on as one unit. Nothing to strip the collider
-        /// from — a bare GameObject never had one.
-        /// </summary>
-        private static Transform AddVisualGroup(Transform parent, string name)
-        {
-            var group = new GameObject(name);
-            group.transform.SetParent(parent, worldPositionStays: false);
-            return group.transform;
-        }
-
-        /// <summary>
-        /// One visual piece: a primitive under <paramref name="parent"/>, painted when
-        /// there is paint to paint with, and stripped of the collider Unity insists on
-        /// giving every primitive — a car whose wings collided with the wall would be
-        /// a car steered by its front wing. Returns the part's transform so a caller
-        /// that needs one (the leaned-back windshield) can pose it after the fact.
-        /// </summary>
-        private static Transform AddVisualPart(Transform parent, string name, PrimitiveType type,
-            Vector3 localPos, Vector3 localScale, Material paint)
-        {
-            var part = GameObject.CreatePrimitive(type);
-            part.name = name;
-            part.transform.SetParent(parent, worldPositionStays: false);
-            part.transform.localPosition = localPos;
-            part.transform.localScale = localScale;
-
-            Collider collider = part.GetComponent<Collider>();
-            if (collider != null)
-            {
-                // Immediate, not deferred: a piece that collides for the rest of the
-                // frame it was born in is a piece a same-frame test — or a car already
-                // touching a wall — can still hit.
-                Object.DestroyImmediate(collider);
-            }
-
-            if (paint != null)
-            {
-                Renderer renderer = part.GetComponent<Renderer>();
-                if (renderer != null)
-                {
-                    renderer.sharedMaterial = paint;
-                }
-            }
-
-            return part.transform;
-        }
-
-        /// <summary>
-        /// The shared red for an unpainted car's body, or null when the project has
-        /// neither shader to make one from — the parts then keep Unity's default
-        /// material, which still beats an invisible car. The same pair of shaders
-        /// <c>TrackBuilder</c> paints the circuit with, so car and track agree on
-        /// where the colour lives.
-        /// </summary>
-        private static Material CreateBodyPaint()
-        {
-            return CreatePaint("Car_BodyMaterial", DefaultBodyColor);
-        }
-
-        /// <summary>The halo's shared dark grey, made the same way as the body paint.</summary>
-        private static Material CreateHaloPaint()
-        {
-            return CreatePaint("Car_HaloMaterial", HaloColor);
-        }
-
-        private static Material CreatePaint(string materialName, Color color)
-        {
-            Shader shader = null;
-            for (int i = 0; i < BodyShaderNames.Length && shader == null; i++)
-            {
-                shader = Shader.Find(BodyShaderNames[i]);
-            }
-
-            if (shader == null)
-            {
-                return null;
-            }
-
-            var material = new Material(shader)
-            {
-                name = materialName,
-                hideFlags = HideFlags.DontSave
-            };
-
-            PaintColor(material, color);
-            return material;
-        }
 
         /// <summary>
         /// Write <paramref name="color"/> to the albedo of either pipeline: URP Lit
