@@ -26,6 +26,7 @@ namespace OpenWheelRacer
         private ChaseCamera _chase;
         private Camera _camera;
         private Transform _rig, _wheel, _dash;
+        private Renderer[] _ownGlass;
         private float _defaultNear;
         private GUIStyle _dashStyle;
 
@@ -45,6 +46,25 @@ namespace OpenWheelRacer
             if (_chase != null) _chase.enabled = !on;
             if (_rig != null) _rig.gameObject.SetActive(on);
             if (_camera != null) _camera.nearClipPlane = on ? NearClip : _defaultNear;
+            SetOwnGlassVisible(!on);
+        }
+
+        /// <summary>
+        /// Hides the player's own windscreen while seated in the car. The eye sits
+        /// 0.26 m behind a 1.4 m pane of glass, and the inside face of that pane
+        /// receives no sun, no bounce and no probe, so it filled the frame with
+        /// black even once the material actually blended. Every race game does the
+        /// same thing: the driver never sees his own windscreen, the chase cam does.
+        /// AI cars are untouched - this only ever walks the bound player's car.
+        /// </summary>
+        private void SetOwnGlassVisible(bool visible)
+        {
+            if (_car == null) return;
+            if (_ownGlass == null)
+                _ownGlass = MustangMeshBuilder.FindOwnGlass(_car.transform);
+            if (_ownGlass == null) return;
+            foreach (Renderer glass in _ownGlass)
+                if (glass != null) glass.enabled = visible;
         }
 
         public void Toggle() => SetCockpit(!CockpitActive);

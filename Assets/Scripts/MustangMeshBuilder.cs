@@ -90,10 +90,46 @@ namespace OpenWheelRacer
             {
                 _glass = Surface("OwrGlass", new Color(0.45f, 0.55f, 0.62f, 0.55f), 0.1f, 0.9f);
                 if (_glass == null) return null;
-                _glass.SetFloat("_Mode", 3);
-                _glass.renderQueue = 3000;
+                MakeGlassTransparent(_glass);
             }
             return _glass;
+        }
+
+        /// <summary>
+        /// Real alpha blending. The old one-liner (`_Mode = 3`) is only an editor
+        /// convenience: at runtime the shader also needs the blend keywords and the
+        /// blend/ZWrite state, so the windscreen was in fact an opaque slab that
+        /// painted the driver's view black. Applies the recipe of whichever shader
+        /// this project resolves to (Built-in Standard today, URP Lit if added).
+        /// </summary>
+        static void MakeGlassTransparent(Material m)
+        {
+            const int TransparentQueue = 3000;
+            if (m.HasProperty("_Mode")) // Built-in RP Standard
+            {
+                m.SetFloat("_Mode", 3);                       // 3 = Transparent
+                m.SetFloat("_SourceType", 0);
+                m.DisableKeyword("_ALPHATEST_ON");
+                m.EnableKeyword("_ALPHABLEND_ON");
+                m.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+                m.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                m.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                m.SetFloat("_ZWrite", 0);                      // glass must not write depth
+                m.SetFloat("_ZTest", 4);                        // LEqual
+                m.SetFloat("_ColorMask", 15);
+                m.SetFloat("_AlphaToMask", 0);
+            }
+            else                                            // URP Lit
+            {
+                m.SetFloat("_Surface", 1);                     // 1 = Transparent
+                m.SetFloat("_Blend", 0);                       // 0 = Alpha
+                m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                m.DisableKeyword("_ALPHATEST_ON");
+                m.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                m.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                m.SetFloat("_ZWrite", 0);
+            }
+            m.renderQueue = TransparentQueue;
         }
 
         static Material Cached(ref Material slot, string name, Color c, float metal, float gloss)
@@ -148,6 +184,31 @@ namespace OpenWheelRacer
                 if (col != null) Object.Destroy(col);
             }
             return bodyMat;
+        }
+
+        /// <summary>
+        /// The car's own windscreen renderers (the <see cref="GlassRootName"/>
+        /// group, found wherever it hangs beneath <paramref name="carRoot"/>), or
+        /// null when the body has no glass. <see cref="CockpitView"/> switches
+        /// these off so the driver never renders the inside of his own windscreen;
+        /// the chase camera puts them back.
+        /// </summary>
+        public static Renderer[] FindOwnGlass(Transform carRoot)
+        {
+            Transform glass = FindGroupRecursive(carRoot, GlassRootName);
+            return glass == null ? null : glass.GetComponentsInChildren<Renderer>(true);
+        }
+
+        static Transform FindGroupRecursive(Transform node, string name)
+        {
+            if (node == null) return null;
+            if (node.name == name) return node;
+            for (int i = 0; i < node.childCount; i++)
+            {
+                Transform hit = FindGroupRecursive(node.GetChild(i), name);
+                if (hit != null) return hit;
+            }
+            return null;
         }
 
         /// <summary>
