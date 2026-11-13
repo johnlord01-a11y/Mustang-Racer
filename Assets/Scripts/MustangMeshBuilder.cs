@@ -630,12 +630,27 @@ namespace OpenWheelRacer
 
             public void Tri(Vector3 a, Vector3 b, Vector3 c)
             {
+                // Emitted in both windings so surfaces read from inside the
+                // open cabin as well as from the street — but as two faces
+                // with their OWN vertices. When both windings shared the
+                // same three indices, RecalculateNormals() accumulated one
+                // +face and one -face normal into every vertex, cancelled
+                // them to exactly (0,0,0), and normalize() on that inside
+                // the shader blacked out every texel of the car: a paintless,
+                // shadeless black silhouette. Unshared vertices let each copy
+                // keep the one normal RecalculateNormals computes for its own
+                // winding, so each side of every face shows a face whose
+                // normal points at the viewer — correct lighting from outside
+                // the body and from the open cabin alike, whatever the hand
+                // winding of the emitting call happened to be.
                 int i = Verts.Count;
                 Verts.Add(a); Verts.Add(b); Verts.Add(c);
                 Uvs.Add(Vector2.zero); Uvs.Add(Vector2.zero); Uvs.Add(Vector2.zero);
-                // emitted in both windings so surfaces read from inside the
-                // open cabin as well as from the street
-                Tris.Add(i); Tris.Add(i + 2); Tris.Add(i + 1);
+                Tris.Add(i); Tris.Add(i + 1); Tris.Add(i + 2);
+
+                i = Verts.Count;
+                Verts.Add(a); Verts.Add(c); Verts.Add(b);
+                Uvs.Add(Vector2.zero); Uvs.Add(Vector2.zero); Uvs.Add(Vector2.zero);
                 Tris.Add(i); Tris.Add(i + 1); Tris.Add(i + 2);
             }
 
