@@ -557,13 +557,65 @@ namespace OpenWheelRacer
         {
             Transform it = group(root, InteriorRootName);
             Material dark = InteriorMat();
-            AddPartBox(it, "Dash", dark, new Vector3(0f, 0.66f, 0.30f), new Vector3(1.34f, 0.16f, 0.30f));
-            AddPartBox(it, "CentreConsole", dark, new Vector3(0f, 0.575f, -0.12f), new Vector3(0.20f, 0.10f, 0.60f));
+            Quaternion vert = Quaternion.LookRotation(Vector3.up);
+
+            // Vertical round part: gauge pods, vent rounds, shift knob.
+            void Round(string n, Material m, Vector3 c, float r, float h)
+            {
+                var b = new Builder();
+                AddCylinderZ(b, c, r, h, vert);
+                PartFromBuilder(it, n, b, m);
+            }
+            void Face(string n, Material m, Vector3 c, float r)
+            {
+                var b = new Builder();
+                AddDiskZ(b, c, r, vert, true);
+                PartFromBuilder(it, n, b, m);
+            }
+
+            // Dash shelf under the windshield (front edge tucked behind the
+            // glass line), knee panel below, chrome accent across the front.
+            AddPartBox(it, "Dash", dark, new Vector3(-0.01f, 0.66f, 0.25f), new Vector3(1.32f, 0.16f, 0.24f));
+            AddPartBox(it, "DashKick", dark, new Vector3(-0.01f, 0.525f, 0.30f), new Vector3(1.28f, 0.13f, 0.20f));
+            AddPartBox(it, "DashTrim", ChromeMat(), new Vector3(-0.01f, 0.723f, 0.124f), new Vector3(1.24f, 0.030f, 0.012f));
+
+            // Twin round gauge pods above the driver, black faces, red needles,
+            // small bright cluster screen between them (2015-17 GT pattern).
+            Round("GaugePod_L", dark, new Vector3(-0.40f, 0.775f, 0.21f), 0.062f, 0.075f);
+            Round("GaugePod_R", dark, new Vector3(-0.135f, 0.775f, 0.21f), 0.062f, 0.075f);
+            Face("GaugeFace_L", BlackMat(), new Vector3(-0.40f, 0.814f, 0.21f), 0.050f);
+            Face("GaugeFace_R", BlackMat(), new Vector3(-0.135f, 0.814f, 0.21f), 0.050f);
+            AddPartBox(it, "GaugeNeedle_L", RedMat(), new Vector3(-0.389f, 0.818f, 0.226f), new Vector3(0.005f, 0.005f, 0.038f), new Vector3(0f, 35f, 0f));
+            AddPartBox(it, "GaugeNeedle_R", RedMat(), new Vector3(-0.124f, 0.818f, 0.226f), new Vector3(0.005f, 0.005f, 0.038f), new Vector3(0f, -35f, 0f));
+            AddPartBox(it, "ClusterScreen", HeadMat(), new Vector3(-0.2675f, 0.757f, 0.225f), new Vector3(0.10f, 0.032f, 0.012f));
+
+            // Three centre vent rounds, then the touchscreen standing on the
+            // centre stack in front of them, bright UI panel facing the driver.
+            float[] vents = { 0.16f, 0.325f, 0.49f };
+            for (int v = 0; v < vents.Length; v++)
+            {
+                Round("CentreVent" + (v + 1), dark, new Vector3(vents[v], 0.768f, 0.24f), 0.048f, 0.055f);
+                Face("CentreVentFace" + (v + 1), BlackMat(), new Vector3(vents[v], 0.797f, 0.24f), 0.036f);
+            }
+            AddPartBox(it, "CentreStack", dark, new Vector3(0.03f, 0.585f, 0.03f), new Vector3(0.26f, 0.27f, 0.14f));
+            AddPartBox(it, "TouchScreen", BlackMat(), new Vector3(0.03f, 0.775f, 0.121f), new Vector3(0.175f, 0.105f, 0.016f), new Vector3(18f, 0f, 0f));
+            AddPartBox(it, "TouchUI", HeadMat(), new Vector3(0.03f, 0.779f, 0.109f), new Vector3(0.148f, 0.082f, 0.006f), new Vector3(18f, 0f, 0f));
+
+            // Centre console + manual shifter: lever in a boot, round knob
+            // with the chrome collar, right where the driver's hand falls.
+            AddPartBox(it, "CentreConsole", dark, new Vector3(-0.02f, 0.545f, -0.15f), new Vector3(0.25f, 0.12f, 0.56f));
+            AddPartBox(it, "ShifterBoot", DarkTrimMat(), new Vector3(-0.04f, 0.613f, 0.06f), new Vector3(0.11f, 0.026f, 0.13f));
+            AddPartBox(it, "ShifterLever", BlackMat(), new Vector3(-0.04f, 0.715f, 0.056f), new Vector3(0.026f, 0.185f, 0.026f));
+            Round("ShifterCap", ChromeMat(), new Vector3(-0.04f, 0.803f, 0.053f), 0.024f, 0.008f);
+            Round("ShifterKnob", BlackMat(), new Vector3(-0.04f, 0.833f, 0.053f), 0.036f, 0.052f);
+
             for (int s = -1; s <= 1; s += 2)
             {
                 string side = s > 0 ? "_R" : "_L";
                 AddPartBox(it, "SeatPan" + side, dark, new Vector3(s * 0.35f, 0.545f, -0.14f), new Vector3(0.42f, 0.10f, 0.46f));
+                AddPartBox(it, "SeatInsert" + side, RedMat(), new Vector3(s * 0.35f, 0.601f, -0.14f), new Vector3(0.32f, 0.012f, 0.36f));
                 AddPartBox(it, "SeatBack" + side, dark, new Vector3(s * 0.35f, 0.75f, -0.33f), new Vector3(0.40f, 0.42f, 0.10f), new Vector3(-8f, 0f, 0f));
+                AddPartBox(it, "SeatBackInsert" + side, RedMat(), new Vector3(s * 0.35f, 0.744f, -0.275f), new Vector3(0.30f, 0.34f, 0.012f), new Vector3(-8f, 0f, 0f));
                 AddPartBox(it, "SeatHead" + side, dark, new Vector3(s * 0.35f, 1.005f, -0.375f), new Vector3(0.28f, 0.14f, 0.10f), new Vector3(-8f, 0f, 0f));
             }
         }
@@ -748,6 +800,40 @@ namespace OpenWheelRacer
                 Vector3 e0 = c + new Vector3(0f, Mathf.Cos(a0), Mathf.Sin(a0)) * r;
                 Vector3 e1 = c + new Vector3(0f, Mathf.Cos(a1), Mathf.Sin(a1)) * r;
                 if (facePlusX) b.Tri(c, e0, e1);
+                else b.Tri(c, e1, e0);
+            }
+        }
+
+        /// <summary>
+        /// Open cylinder aimed along <c>q * Vector3.forward</c> (rings swept from
+        /// builder-Y into builder-Z), placed at <paramref name="c"/> with depth
+        /// <paramref name="len"/> along that axis. Round gauge pods/vents.
+        /// </summary>
+        static void AddCylinderZ(Builder b, Vector3 c, float r, float len, Quaternion q, int segs = 16)
+        {
+            Vector3 ax = q * Vector3.forward, up = q * Vector3.up, side = q * Vector3.right;
+            float half = 0.5f * len;
+            for (int i = 0; i < segs; i++)
+            {
+                float a0 = i / (float)segs * Mathf.PI * 2f;
+                float a1 = (i + 1) / (float)segs * Mathf.PI * 2f;
+                Vector3 s0 = (up * Mathf.Cos(a0) + side * Mathf.Sin(a0)) * r;
+                Vector3 s1 = (up * Mathf.Cos(a1) + side * Mathf.Sin(a1)) * r;
+                b.Quad(c + s0 - ax * half, c + s1 - ax * half, c + s1 + ax * half, c + s0 + ax * half);
+            }
+        }
+
+        /// <summary>Flat disk in the plane spanned by q's X and Y axes (normal = q * Z).</summary>
+        static void AddDiskZ(Builder b, Vector3 c, float r, Quaternion q, bool facePlusZ, int segs = 14)
+        {
+            Vector3 up = q * Vector3.up, side = q * Vector3.right;
+            for (int i = 0; i < segs; i++)
+            {
+                float a0 = i / (float)segs * Mathf.PI * 2f;
+                float a1 = (i + 1) / (float)segs * Mathf.PI * 2f;
+                Vector3 e0 = c + (up * Mathf.Cos(a0) + side * Mathf.Sin(a0)) * r;
+                Vector3 e1 = c + (up * Mathf.Cos(a1) + side * Mathf.Sin(a1)) * r;
+                if (facePlusZ) b.Tri(c, e0, e1);
                 else b.Tri(c, e1, e0);
             }
         }
