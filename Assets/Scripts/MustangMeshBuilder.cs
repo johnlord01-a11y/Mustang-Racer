@@ -65,9 +65,10 @@ namespace OpenWheelRacer
         }
 
         static Material _glass, _black, _chrome, _red, _amber, _interior,
-                        _darkTrim, _tire, _rim, _stripe, _head;
+                        _darkTrim, _tire, _rim, _stripe, _head,
+                        _litPanel, _lcd, _needle;
 
-        static Material Surface(string name, Color c, float metallic, float gloss)
+        static Material Surface(string name, Color c, float metallic, float gloss, Color? emis = null)
         {
             Shader shader = BodyShader;
             if (shader == null) return null;
@@ -81,6 +82,15 @@ namespace OpenWheelRacer
             else m.color = c;
             if (m.HasProperty("_Metallic")) m.SetFloat("_Metallic", metallic);
             if (m.HasProperty("_Glossiness")) m.SetFloat("_Glossiness", gloss);
+            // Self-lit term for interior instruments: the sun never reaches
+            // under the roof, and a 60-degree graze put black dials on the
+            // grey cap at a 0.94 luminance ratio (r3-2/r3-3 column profile).
+            if (emis.HasValue)
+            {
+                m.EnableKeyword("_EMISSION");
+                if (m.HasProperty("_EmissionColor")) m.SetColor("_EmissionColor", emis.Value);
+                else m.SetColor("_EmissiveColor", emis.Value);
+            }
             return m;
         }
 
@@ -132,9 +142,9 @@ namespace OpenWheelRacer
             m.renderQueue = TransparentQueue;
         }
 
-        static Material Cached(ref Material slot, string name, Color c, float metal, float gloss)
+        static Material Cached(ref Material slot, string name, Color c, float metal, float gloss, Color? emis = null)
         {
-            if (slot == null) slot = Surface(name, c, metal, gloss);
+            if (slot == null) slot = Surface(name, c, metal, gloss, emis);
             return slot;
         }
 
@@ -148,6 +158,12 @@ namespace OpenWheelRacer
         static Material RimMat() { return Cached(ref _rim, "OwrRim", new Color(0.06f, 0.06f, 0.065f), 0.75f, 0.75f); }
         static Material StripeMat() { return Cached(ref _stripe, "OwrStripe", new Color(0.85f, 0.86f, 0.88f), 0.2f, 0.8f); }
         static Material HeadMat() { return Cached(ref _head, "OwrHeadLens", new Color(0.88f, 0.90f, 0.94f), 0.4f, 0.9f); }
+        // Self-lit interior set (round 3): the daytime sky rig leaves the
+        // cabin in shade, so powered instruments must carry their own light
+        // to separate from the dash cap at a 60-degree graze.
+        static Material LitPanelMat() { return Cached(ref _litPanel, "OwrLitPanel", new Color(0.92f, 0.94f, 0.97f), 0f, 0.35f, new Color(0.60f, 0.66f, 0.78f)); }
+        static Material LcdMat() { return Cached(ref _lcd, "OwrLcd", new Color(0.02f, 0.02f, 0.03f), 0f, 0.5f, new Color(0.22f, 0.30f, 0.44f)); }
+        static Material NeedleMat() { return Cached(ref _needle, "OwrNeedle", new Color(0.6f, 0.04f, 0.05f), 0.1f, 0.6f, new Color(0.30f, 0.02f, 0.03f)); }
 
         // ==================================================================
         // Public build entry points
@@ -630,9 +646,9 @@ namespace OpenWheelRacer
                 Face("GaugeBezel" + side, ChromeMat(), new Vector3(px, 0.6320f, 0.30f), 0.082f);
                 Face("GaugeFace" + side, BlackMat(), new Vector3(px, 0.6328f, 0.30f), 0.070f);
                 Face("GaugePip" + side, HeadMat(), new Vector3(px, 0.6335f, 0.30f), 0.014f);
-                AddPartBox(it, "GaugeNeedle" + side, RedMat(), new Vector3(px - 0.016f, 0.6339f, 0.315f), new Vector3(0.014f, 0.006f, 0.095f), new Vector3(0f, s * 35f, 0f));
+                AddPartBox(it, "GaugeNeedle" + side, NeedleMat(), new Vector3(px - 0.016f, 0.6339f, 0.315f), new Vector3(0.014f, 0.006f, 0.095f), new Vector3(0f, s * 35f, 0f));
             }
-            AddPartBox(it, "ClusterScreen", BlackMat(), new Vector3(-0.13f, 0.6328f, 0.30f), new Vector3(0.12f, 0.005f, 0.042f));
+            AddPartBox(it, "ClusterScreen", LcdMat(), new Vector3(-0.13f, 0.6328f, 0.30f), new Vector3(0.12f, 0.005f, 0.042f));
 
             // Three flat centre vents, then the centre touchscreen laid as a
             // recessed well in the dash cap, S550-nav-screen style: lying
@@ -655,7 +671,7 @@ namespace OpenWheelRacer
             // Black bezel plate proud of the cap, lit UI plate floating ~3 mm
             // above it; UI top 0.6378, still under the 0.641 deck rule.
             AddPartBox(it, "TouchScreen", BlackMat(), new Vector3(0.02f, 0.6322f, 0.150f), new Vector3(0.240f, 0.005f, 0.140f));
-            AddPartBox(it, "TouchUI", HeadMat(), new Vector3(0.02f, 0.6358f, 0.150f), new Vector3(0.190f, 0.004f, 0.104f));
+            AddPartBox(it, "TouchUI", LitPanelMat(), new Vector3(0.02f, 0.6358f, 0.150f), new Vector3(0.190f, 0.004f, 0.104f));
 
             // Centre console + shifter between the seats, running down to
             // the floor pan. Round-3b: the knob is a real stack now — boot
