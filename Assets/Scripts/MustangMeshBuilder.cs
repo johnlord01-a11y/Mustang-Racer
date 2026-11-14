@@ -627,12 +627,12 @@ namespace OpenWheelRacer
             {
                 float px = s < 0 ? -0.32f : 0.12f;
                 string side = s < 0 ? "_L" : "_R";
-                Face("GaugeBezel" + side, ChromeMat(), new Vector3(px, 0.6306f, 0.30f), 0.068f);
-                Face("GaugeFace" + side, BlackMat(), new Vector3(px, 0.6314f, 0.30f), 0.058f);
-                Face("GaugePip" + side, HeadMat(), new Vector3(px, 0.6321f, 0.30f), 0.011f);
-                AddPartBox(it, "GaugeNeedle" + side, RedMat(), new Vector3(px - 0.014f, 0.6334f, 0.313f), new Vector3(0.012f, 0.006f, 0.078f), new Vector3(0f, s * 35f, 0f));
+                Face("GaugeBezel" + side, ChromeMat(), new Vector3(px, 0.6320f, 0.30f), 0.082f);
+                Face("GaugeFace" + side, BlackMat(), new Vector3(px, 0.6328f, 0.30f), 0.070f);
+                Face("GaugePip" + side, HeadMat(), new Vector3(px, 0.6335f, 0.30f), 0.014f);
+                AddPartBox(it, "GaugeNeedle" + side, RedMat(), new Vector3(px - 0.016f, 0.6339f, 0.315f), new Vector3(0.014f, 0.006f, 0.095f), new Vector3(0f, s * 35f, 0f));
             }
-            AddPartBox(it, "ClusterScreen", BlackMat(), new Vector3(-0.13f, 0.6323f, 0.30f), new Vector3(0.11f, 0.0035f, 0.038f));
+            AddPartBox(it, "ClusterScreen", BlackMat(), new Vector3(-0.13f, 0.6328f, 0.30f), new Vector3(0.12f, 0.005f, 0.042f));
 
             // Three flat centre vents, then the centre touchscreen laid as a
             // recessed well in the dash cap, S550-nav-screen style: lying
@@ -648,14 +648,14 @@ namespace OpenWheelRacer
             float[] vents = { -0.04f, 0.09f, 0.22f };
             for (int v = 0; v < vents.Length; v++)
             {
-                Face("CentreVent" + (v + 1), BlackMat(), new Vector3(vents[v], 0.6306f, 0.36f), 0.050f);
-                AddPartBox(it, "VentBarA" + (v + 1), ChromeMat(), new Vector3(vents[v], 0.6318f, 0.36f), new Vector3(0.004f, 0.002f, 0.084f));
-                AddPartBox(it, "VentBarB" + (v + 1), ChromeMat(), new Vector3(vents[v], 0.6318f, 0.36f), new Vector3(0.084f, 0.002f, 0.004f));
+                Face("CentreVent" + (v + 1), BlackMat(), new Vector3(vents[v], 0.6320f, 0.36f), 0.060f);
+                AddPartBox(it, "VentBarA" + (v + 1), ChromeMat(), new Vector3(vents[v], 0.6330f, 0.36f), new Vector3(0.005f, 0.002f, 0.100f));
+                AddPartBox(it, "VentBarB" + (v + 1), ChromeMat(), new Vector3(vents[v], 0.6330f, 0.36f), new Vector3(0.100f, 0.002f, 0.005f));
             }
-            // Black bezel plate 0.5 mm proud of the cap, UI plate floating
-            // 1 mm above the bezel; both top under 0.635.
-            AddPartBox(it, "TouchScreen", BlackMat(), new Vector3(0.02f, 0.6322f, 0.150f), new Vector3(0.220f, 0.004f, 0.125f));
-            AddPartBox(it, "TouchUI", HeadMat(), new Vector3(0.02f, 0.6334f, 0.150f), new Vector3(0.176f, 0.003f, 0.089f));
+            // Black bezel plate proud of the cap, lit UI plate floating ~3 mm
+            // above it; UI top 0.6378, still under the 0.641 deck rule.
+            AddPartBox(it, "TouchScreen", BlackMat(), new Vector3(0.02f, 0.6322f, 0.150f), new Vector3(0.240f, 0.005f, 0.140f));
+            AddPartBox(it, "TouchUI", HeadMat(), new Vector3(0.02f, 0.6358f, 0.150f), new Vector3(0.190f, 0.004f, 0.104f));
 
             // Centre console + shifter between the seats, running down to
             // the floor pan. Round-3b: the knob is a real stack now — boot
@@ -664,9 +664,9 @@ namespace OpenWheelRacer
             // out of the console instead of a flush porthole disc. Top
             // (0.6405) still respects the 0.641 interior deck rule.
             AddPartBox(it, "CentreConsole", dark, new Vector3(-0.02f, 0.35f, -0.435f), new Vector3(0.24f, 0.50f, 0.57f));
-            Round("ShifterBoot", BlackMat(), new Vector3(-0.045f, 0.6085f, -0.22f), 0.030f, 0.019f);
-            Round("ShifterKnob", BlackMat(), new Vector3(-0.045f, 0.6265f, -0.22f), 0.036f, 0.028f);
-            Face("ShifterCap", ChromeMat(), new Vector3(-0.045f, 0.6408f, -0.22f), 0.017f);
+            Round("ShifterBoot", BlackMat(), new Vector3(-0.045f, 0.6085f, -0.22f), 0.038f, 0.019f);
+            Round("ShifterKnob", BlackMat(), new Vector3(-0.045f, 0.6265f, -0.22f), 0.042f, 0.028f);
+            Face("ShifterCap", ChromeMat(), new Vector3(-0.045f, 0.6408f, -0.22f), 0.020f);
 
             // Door cards: the shell's sloped white sides are the cabin wall,
             // so trim them dark floor-to-belt along the whole open span.

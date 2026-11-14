@@ -134,7 +134,7 @@ namespace OpenWheelRacer
         private void BuildRig(Transform car)
         {
             var black = MakeMaterial(new Color(0.045f, 0.045f, 0.05f));
-            var rimDark = MakeMaterial(new Color(0.15f, 0.15f, 0.17f));
+            var rimDark = MakeMaterial(new Color(0.22f, 0.22f, 0.245f));
             var silver = MakeMaterial(new Color(0.85f, 0.86f, 0.88f));
             var navy = MakeMaterial(new Color(0.10f, 0.10f, 0.13f));
 
@@ -142,8 +142,10 @@ namespace OpenWheelRacer
             _rig.SetParent(car, false);
 
             // ROUND steering wheel in front of the left seat, rim leaning back
-            // 20 degrees: rim torus 0.14 ring / 0.022 tube, centre y 0.68 —
-            // the round-3 drop so the sight lines to the touchscreen and the
+            // 20 degrees: rim torus 0.14 ring / 0.029 tube (thickened in
+            // round 3 so the lower arc stays legible against the dark dash
+            // front). Centre y 0.68 — the round-3 drop so the sight lines to
+            // the touchscreen and the
             // pods pass through the rim OPENING (r<0.118) or outside the tube
             // (r>0.162) instead of through the arc the 0.735 height put across
             // them. Rim top 0.842 stays a hand's width below the 1.06 eye.
@@ -152,7 +154,7 @@ namespace OpenWheelRacer
             _wheel.localPosition = new Vector3(-0.10f, 0.68f, 0.105f);
             // Joined torus rim, one closed mesh (round 1's fourteen separate
             // cubes gapped into a scalloped ring in every cockpit frame).
-            MeshPiece("Wheel_Rim", _wheel, Vector3.zero, Vector3.zero, BuildRimMesh(0.140f, 0.022f, 32, 12), rimDark);
+            MeshPiece("Wheel_Rim", _wheel, Vector3.zero, Vector3.zero, BuildRimMesh(0.140f, 0.029f, 32, 12), rimDark);
             // Silver side spokes SHORTENED (0.075 long, out to r 0.0965) so
             // they stop where the button pads start (pad inner edge 0.0775):
             // the round-2 spoke length put a 12.5 cm silver bar across the
