@@ -4,26 +4,31 @@ using UnityEngine.InputSystem;
 namespace OpenWheelRacer
 {
     /// Seated driver's view (default) of the Mustang GT, LEFT seat (US car).
-    /// The rig is a ROUND 3-spoke steering wheel — dark rim, silver spokes,
-    /// chrome-ringed pony badge, navy gloved hands at 9 and 3 — that turns with
-    /// the car's actual steer angle, a short column into the dash, and a small
-    /// readout plate on the lower spoke showing real speed (km/h) and a derived
-    /// virtual gear, drawn at the plate's projected screen position. The hood,
-    /// windshield frame, twin gauge pods, three centre rounds, touchscreen and
-    /// manual shifter all come from <see cref="MustangMeshBuilder"/>'s body, so
-    /// one cabin is shared with the chase cameras. C toggles back to the
-    /// existing ChaseCamera (near clip and field of view restore). All cockpit
-    /// geometry is collider-free and parented to the player's car only.
+    /// The rig is a ROUND 3-spoke steering wheel — one joined torus rim,
+    /// silver spokes, dark hub with a compact pony badge, navy gloved hands at
+    /// 9 and 3 — that turns with the car's actual steer angle, a short column
+    /// into the dash, and a speed (km/h) + derived virtual-gear readout
+    /// anchored to the centre touchscreen, drawn at the panel's projected
+    /// screen position (it never rides the wheel, so it does not spin). The
+    /// hood, windshield frame, twin gauge pods, three centre rounds and manual
+    /// shifter all come from <see cref="MustangMeshBuilder"/>'s body, so one
+    /// cabin is shared with the chase cameras. C toggles back to the existing
+    /// ChaseCamera (near clip and field of view restore; the chase snaps to
+    /// its rest pose so the first outside frame is not stuck mid-lerp inside
+    /// the body). All cockpit geometry is collider-free and parented to the
+    /// player's car only.
     [RequireComponent(typeof(Camera))]
     public sealed class CockpitView : MonoBehaviour
     {
-        /// <summary>Driver eye in the LEFT seat, dead ahead of the twin gauge pods
-        /// and centred over the wheel; z clears the seat back. At seated eye
-        /// height the A-pillars cross the sides of the view and the glass base
-        /// edge crosses the bottom; the header rail sits ~40 degrees above the
-        /// eye at 30 cm (convertible proportions), outside any sane FOV, so it
-        /// frames chase shots rather than this one.</summary>
-        public static readonly Vector3 EyeLocal = new Vector3(-0.22f, 0.99f, -0.24f);
+        /// <summary>Driver eye in the LEFT seat, dead ahead of the twin gauge
+        /// pods and centred over the wheel; z clears the seat back. Seated at
+        /// y 0.88 — head just above the 0.641 deck line like a real open-top
+        /// GT (the round-1 0.99 eye sat too high and looked down its nose at
+        /// the dash): the dash lip, shifter knob and gauge pod faces all land
+        /// in the lower third of frame, the A-pillars cross the sides and the
+        /// glass base edge crosses the bottom, framing road and white cowl
+        /// ahead like ref-4.</summary>
+        public static readonly Vector3 EyeLocal = new Vector3(-0.22f, 0.88f, -0.24f);
 
         /// Slight downward pitch so hood, dash and shifter compose naturally
         /// in the lower half while the road fills the top (matches ref-4).
@@ -41,7 +46,8 @@ namespace OpenWheelRacer
         public bool CockpitActive { get; private set; } = true;
         public Transform Rig => _rig;
         public Transform SteeringWheel => _wheel;
-        /// <summary>Black display plate on the lower spoke; the speed/gear readout is drawn over it.</summary>
+        /// <summary>Anchor at the centre touchscreen's lit UI panel; the speed/gear readout
+        /// is drawn at its projected position, so it never spins with the wheel.</summary>
         public Transform Dash => _dash;
 
         private VehicleController _car;
@@ -66,7 +72,13 @@ namespace OpenWheelRacer
         public void SetCockpit(bool on)
         {
             CockpitActive = on;
-            if (_chase != null) _chase.enabled = !on;
+            if (_chase != null)
+            {
+                _chase.enabled = !on;
+                // Hand back at the rest pose, not mid-lerp through the body
+                // (the round-1 frame_02 chase_near embed artifact).
+                if (!on) _chase.SnapToTarget();
+            }
             if (_rig != null) _rig.gameObject.SetActive(on);
             if (_camera != null)
             {
@@ -151,7 +163,7 @@ namespace OpenWheelRacer
                 {
                     fontSize = size, alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold
                 };
-                _dashStyle.normal.textColor = Color.white;
+                _dashStyle.normal.textColor = new Color(0.06f, 0.06f, 0.07f, 0.95f);  // dark digits on the lit screen
             }
 
             int kmh = Mathf.RoundToInt(_car.CurrentSpeedMs * 3.6f);
@@ -170,45 +182,104 @@ namespace OpenWheelRacer
             _rig.SetParent(car, false);
 
             // ROUND steering wheel in front of the left seat, rim leaning back
-            // 20 degrees: 37 cm across, centred at eye height over the knees.
+            // 20 degrees: 37 cm across, centred at the sternum line below the
+            // new 0.88 eye so the rim tops out at ~0.92 and stays under the
+            // eye line like the reference (round-1's 0.86 centre read high).
             _wheel = new GameObject("Cockpit_Wheel").transform;
             _wheel.SetParent(_rig, false);
-            _wheel.localPosition = new Vector3(-0.35f, 0.86f, 0.26f);
-            for (int i = 0; i < 14; i++)
-            {
-                float a = i / 14f * 360f, rad = a * Mathf.Deg2Rad;
-                Piece($"Wheel_Rim{i}", PrimitiveType.Cube, _wheel,
-                    new Vector3(Mathf.Cos(rad) * 0.185f, Mathf.Sin(rad) * 0.185f, 0f),
-                    new Vector3(0f, 0f, a), new Vector3(0.090f, 0.052f, 0.052f), carbon);
-            }
+            _wheel.localPosition = new Vector3(-0.35f, 0.735f, 0.24f);
+            // Joined torus rim, one closed mesh (round 1's fourteen separate
+            // cubes gapped into a scalloped ring in every cockpit frame).
+            MeshPiece("Wheel_Rim", _wheel, Vector3.zero, Vector3.zero, BuildRimMesh(0.185f, 0.024f, 32, 12), black);
             // Three silver spokes; small dark button pads outboard on the pair.
             Piece("Wheel_SpokeL", PrimitiveType.Cube, _wheel, new Vector3(-0.105f, 0.008f, 0f), Vector3.zero, new Vector3(0.16f, 0.030f, 0.024f), silver);
             Piece("Wheel_SpokeR", PrimitiveType.Cube, _wheel, new Vector3(0.105f, 0.008f, 0f), Vector3.zero, new Vector3(0.16f, 0.030f, 0.024f), silver);
             Piece("Wheel_SpokeB", PrimitiveType.Cube, _wheel, new Vector3(0f, -0.105f, 0f), Vector3.zero, new Vector3(0.030f, 0.16f, 0.024f), silver);
             Piece("Wheel_PadL", PrimitiveType.Cube, _wheel, new Vector3(-0.115f, 0.032f, 0.016f), Vector3.zero, new Vector3(0.075f, 0.040f, 0.012f), black);
             Piece("Wheel_PadR", PrimitiveType.Cube, _wheel, new Vector3(0.115f, 0.032f, 0.016f), Vector3.zero, new Vector3(0.075f, 0.040f, 0.012f), black);
-            // Hub: dark pad inside a chrome ring; the badge is a chrome ring +
-            // dark plate + a galloping-pony silhouette of six small silver
-            // boxes (body, neck, head, two legs, tail) - no image assets.
-            Piece("Wheel_HubRing", PrimitiveType.Cylinder, _wheel, new Vector3(0f, 0.003f, 0.010f), new Vector3(90f, 0f, 0f), new Vector3(0.164f, 0.030f, 0.164f), silver);
-            Piece("Wheel_Hub", PrimitiveType.Cylinder, _wheel, new Vector3(0f, 0.003f, 0.017f), new Vector3(90f, 0f, 0f), new Vector3(0.150f, 0.026f, 0.150f), carbon);
-            Piece("Wheel_BadgeRing", PrimitiveType.Cylinder, _wheel, new Vector3(0f, 0.003f, 0.031f), new Vector3(90f, 0f, 0f), new Vector3(0.066f, 0.008f, 0.066f), silver);
-            Piece("Wheel_BadgePlate", PrimitiveType.Cylinder, _wheel, new Vector3(0f, 0.003f, 0.035f), new Vector3(90f, 0f, 0f), new Vector3(0.054f, 0.006f, 0.054f), carbon);
-            Piece("Pony_Body", PrimitiveType.Cube, _wheel, new Vector3(0.003f, 0.005f, 0.038f), new Vector3(0f, 0f, -12f), new Vector3(0.030f, 0.011f, 0.007f), silver);
-            Piece("Pony_Neck", PrimitiveType.Cube, _wheel, new Vector3(0.016f, 0.013f, 0.038f), new Vector3(0f, 0f, 28f), new Vector3(0.009f, 0.015f, 0.007f), silver);
-            Piece("Pony_Head", PrimitiveType.Cube, _wheel, new Vector3(0.022f, 0.021f, 0.038f), new Vector3(0f, 0f, 12f), new Vector3(0.009f, 0.006f, 0.007f), silver);
-            Piece("Pony_LegF", PrimitiveType.Cube, _wheel, new Vector3(0.014f, -0.007f, 0.038f), new Vector3(0f, 0f, 28f), new Vector3(0.017f, 0.006f, 0.007f), silver);
-            Piece("Pony_LegR", PrimitiveType.Cube, _wheel, new Vector3(-0.014f, -0.006f, 0.038f), new Vector3(0f, 0f, 205f), new Vector3(0.017f, 0.006f, 0.007f), silver);
-            Piece("Pony_Tail", PrimitiveType.Cube, _wheel, new Vector3(-0.020f, 0.010f, 0.038f), new Vector3(0f, 0f, 160f), new Vector3(0.015f, 0.006f, 0.007f), silver);
-            // Readout plate low on the lower spoke, offset inboard so it sits
-            // dead ahead of the eye (the wheel itself centres on the seat).
-            _dash = Piece("Wheel_Dash", PrimitiveType.Cube, _wheel,
-                new Vector3(0.13f, -0.14f, 0.004f), Vector3.zero, new Vector3(0.072f, 0.034f, 0.010f), black).transform;
+            // Hub: DARK centre pad inside a slim silver bezel — the reference
+            // wheel's hub is a dark centre, not a chrome dinner plate (round-1
+            // hub + badge occupied most of the wheel opening). The badge is a
+            // compact galloping-pony silhouette of six small silver boxes
+            // (body, neck, head, two legs, tail) at ~2/3 round-1 scale, flat
+            // on the pad — no image assets, no chrome ring around it.
+            Piece("Wheel_HubRing", PrimitiveType.Cylinder, _wheel, new Vector3(0f, 0.003f, 0.006f), new Vector3(90f, 0f, 0f), new Vector3(0.136f, 0.032f, 0.136f), silver);
+            Piece("Wheel_Hub", PrimitiveType.Cylinder, _wheel, new Vector3(0f, 0.003f, 0.010f), new Vector3(90f, 0f, 0f), new Vector3(0.120f, 0.016f, 0.120f), carbon);
+            Piece("Pony_Body", PrimitiveType.Cube, _wheel, new Vector3(0.002f, 0.003f, 0.026f), new Vector3(0f, 0f, -12f), new Vector3(0.020f, 0.007f, 0.005f), silver);
+            Piece("Pony_Neck", PrimitiveType.Cube, _wheel, new Vector3(0.0105f, 0.0085f, 0.026f), new Vector3(0f, 0f, 28f), new Vector3(0.006f, 0.010f, 0.005f), silver);
+            Piece("Pony_Head", PrimitiveType.Cube, _wheel, new Vector3(0.0143f, 0.0137f, 0.026f), new Vector3(0f, 0f, 12f), new Vector3(0.006f, 0.004f, 0.005f), silver);
+            Piece("Pony_LegF", PrimitiveType.Cube, _wheel, new Vector3(0.0091f, -0.0046f, 0.026f), new Vector3(0f, 0f, 28f), new Vector3(0.011f, 0.004f, 0.005f), silver);
+            Piece("Pony_LegR", PrimitiveType.Cube, _wheel, new Vector3(-0.0091f, -0.004f, 0.026f), new Vector3(0f, 0f, 205f), new Vector3(0.011f, 0.004f, 0.005f), silver);
+            Piece("Pony_Tail", PrimitiveType.Cube, _wheel, new Vector3(-0.013f, 0.0065f, 0.026f), new Vector3(0f, 0f, 160f), new Vector3(0.010f, 0.004f, 0.005f), silver);
+            // Speed/gear readout anchor: the centre touchscreen's lit UI panel
+            // (body TouchUI at 0.03, 0.5765, 0.133), NOT the wheel, so the
+            // digits stay glued to the screen while the wheel spins. Invisible
+            // transform, no renderer, no collider.
+            var dashGo = new GameObject("Dash_Readout");
+            dashGo.transform.SetParent(_rig, false);
+            dashGo.transform.localPosition = new Vector3(0.03f, 0.5765f, 0.133f);
+            _dash = dashGo.transform;
             // Navy gloves gripping the rim at 9 and 3.
             Piece("Hand_L", PrimitiveType.Capsule, _wheel, new Vector3(-0.178f, 0.045f, -0.012f), new Vector3(0f, 0f, 72f), new Vector3(0.062f, 0.088f, 0.062f), navy);
             Piece("Hand_R", PrimitiveType.Capsule, _wheel, new Vector3(0.178f, 0.045f, -0.012f), new Vector3(0f, 0f, -72f), new Vector3(0.062f, 0.088f, 0.062f), navy);
-            // Short column sloping from the hub into the dash face.
-            Piece("Wheel_Column", PrimitiveType.Cylinder, _rig, new Vector3(-0.35f, 0.76f, 0.325f), new Vector3(147f, 0f, 0f), new Vector3(0.044f, 0.26f, 0.044f), black);
+            // Short column sloping from the hub into the dash face (follows
+            // the lowered wheel; reaches down to the dash top at y 0.575).
+            Piece("Wheel_Column", PrimitiveType.Cylinder, _rig, new Vector3(-0.35f, 0.645f, 0.30f), new Vector3(147f, 0f, 0f), new Vector3(0.044f, 0.23f, 0.044f), black);
+        }
+
+        private static GameObject MeshPiece(string name, Transform parent, Vector3 pos, Vector3 euler, Mesh mesh, Material m)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = pos;
+            go.transform.localEulerAngles = euler;
+            var r = go.AddComponent<MeshRenderer>();
+            var f = go.AddComponent<MeshFilter>();
+            f.sharedMesh = mesh;
+            if (m != null) { r.sharedMaterial = m; r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; }
+            return go;
+        }
+
+        /// <summary>
+        /// Closed torus rim lying in the wheel's XY plane (axis +Z), built
+        /// double-sided so the back faces shaded from the driver's side stay
+        /// lit. One mesh, no seams, no gaps -- the rim must read as a circle.
+        /// </summary>
+        private static Mesh BuildRimMesh(float ringR, float tubeR, int major, int minor)
+        {
+            int ring = minor + 1;
+            var verts = new Vector3[(major + 1) * ring];
+            var normals = new Vector3[verts.Length];
+            for (int i = 0; i <= major; i++)
+            {
+                float u = (float)i / major * Mathf.PI * 2f, cu = Mathf.Cos(u), su = Mathf.Sin(u);
+                for (int j = 0; j <= minor; j++)
+                {
+                    float v = (float)j / minor * Mathf.PI * 2f, cv = Mathf.Cos(v), sv = Mathf.Sin(v);
+                    verts[i * ring + j] = new Vector3((ringR + tubeR * cv) * cu, (ringR + tubeR * cv) * su, tubeR * sv);
+                    normals[i * ring + j] = new Vector3(cu * cv, su * cv, sv);
+                }
+            }
+            var tris = new int[major * minor * 12];
+            int t = 0;
+            for (int i = 0; i < major; i++)
+            {
+                for (int j = 0; j < minor; j++)
+                {
+                    int a = i * ring + j, b = a + ring, c = a + 1, d = b + 1;
+                    tris[t++] = a; tris[t++] = c; tris[t++] = b;
+                    tris[t++] = b; tris[t++] = c; tris[t++] = d;
+                    tris[t++] = a; tris[t++] = b; tris[t++] = c;
+                    tris[t++] = b; tris[t++] = d; tris[t++] = c;
+                }
+            }
+            var m = new Mesh { name = "Wheel_Rim_Mesh" };
+            m.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+            m.SetVertices(verts);
+            m.SetNormals(normals);
+            m.SetTriangles(tris, 0);
+            m.RecalculateBounds();
+            return m;
         }
 
         private static GameObject Piece(string name, PrimitiveType type, Transform parent,
