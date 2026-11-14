@@ -61,7 +61,7 @@ namespace OpenWheelRacer.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator CentreScreen_IsTiltedUnderTheSilhouetteLine()
+        public IEnumerator CentreScreen_IsFlushWellUnderTheSilhouetteLine()
         {
             Build();
             yield return null;
@@ -71,10 +71,20 @@ namespace OpenWheelRacer.Tests.PlayMode
             Assert.IsNotNull(screen, "body must keep a centre touchscreen");
             Assert.IsNotNull(ui, "touchscreen must keep its lit UI panel");
 
-            // Popped up: the panel leans back toward the driver instead of
-            // lying flat on the dash cap (flat it read as a pasted plate).
-            Assert.Greater(Mathf.Abs(Mathf.DeltaAngle(0f, screen.localEulerAngles.x)), 15f,
-                "touchscreen must stand tilted in the centre stack");
+            // Round-3b contract: the screen is a FLUSH recessed well — the
+            // bezel plate lies level on the dash cap (tilting it buries the
+            // panel under the cap front edge at this eye height), and the
+            // lit UI plate floats proud of the bezel so the black frame
+            // rings it from the driver's grazing angle.
+            Assert.Less(Mathf.Abs(Mathf.DeltaAngle(0f, screen.localEulerAngles.x)), 2f,
+                "touchscreen bezel must lie flush with the dash cap");
+            Bounds sb = screen.GetComponent<Renderer>().bounds;
+            Bounds ub = ui.GetComponent<Renderer>().bounds;
+            Assert.Greater(ub.max.y, sb.max.y, "UI plate must float proud of its bezel");
+            Assert.LessOrEqual(Mathf.Abs(ub.center.x - sb.center.x), 0.005f,
+                "UI plate must sit inside its bezel");
+            Assert.LessOrEqual(Mathf.Abs(ub.center.z - sb.center.z), 0.005f,
+                "UI plate must sit inside its bezel");
 
             // Never pokes above the cabin deck the chase cameras silhouette.
             float top = 0f;
@@ -82,7 +92,15 @@ namespace OpenWheelRacer.Tests.PlayMode
                 foreach (Vector3 c in Corners(r.bounds))
                     top = Mathf.Max(top, c.y);
             Assert.Less(top, 0.641f, "screen tops must stay under the deck line");
-            Debug.Log($"[Cockpit] TouchUI top y {top:F4}");
+
+            // Shifter stack: knob + boot exist and stay under the same deck.
+            Transform knob = Find(_car.transform, "ShifterKnob");
+            Assert.IsNotNull(knob, "cabin must keep a shifter knob");
+            foreach (Renderer r in knob.GetComponentsInChildren<Renderer>(true))
+                foreach (Vector3 c in Corners(r.bounds))
+                    top = Mathf.Max(top, c.y);
+            Assert.Less(top, 0.641f, "shifter knob must stay under the deck line");
+            Debug.Log($"[Cockpit] deck check: TouchUI/ShifterKnob top y {top:F4}");
         }
 
         private static Transform Find(Transform root, string name)

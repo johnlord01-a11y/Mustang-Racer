@@ -11,9 +11,9 @@ namespace OpenWheelRacer
     /// the projected "N 0" text read as a plate pasted below the wheel; the
     /// simplest acceptable outcome is no readout, and the centre touchscreen
     /// stays a plain lit screen). The eye sits high and BACK in the tub — real
-    /// seating depth behind the wheel (0.65 m) — and pitches down 24 degrees
+    /// seating depth behind the wheel (0.65 m) — and pitches down 26 degrees
     /// at 90 degrees FOV, the round-3 geometry that puts the whole dash set
-    /// (twin gauge pods, three centre vents, pop-up touchscreen, manual
+    /// (twin gauge pods, three centre vents, flush centre touchscreen, manual
     /// shifter) inside one frame over the rim, with the road and sky still
     /// filling the top. The hood, windshield frame, pillars, dash set and
     /// shifter all come from <see cref="MustangMeshBuilder"/>'s body, so one
@@ -32,13 +32,13 @@ namespace OpenWheelRacer
         /// the shifter BEHIND the camera and the screen below the frame).
         /// Seat-back tops (y 0.63) stay below the bottom frame edge, so the
         /// seat never intrudes.</summary>
-        public static readonly Vector3 EyeLocal = new Vector3(-0.10f, 1.02f, -0.55f);
+        public static readonly Vector3 EyeLocal = new Vector3(-0.10f, 1.06f, -0.55f);
 
-        /// <summary>Head-down GT pose: pitch axis 24 degrees below the horizon
+        /// <summary>Head-down GT pose: pitch axis 26 degrees below the horizon
         /// puts the dash band (21..33 deg below the eye) across the middle of
         /// the frame and the shifter (49.5 deg) at v -0.89, while the frame top
         /// still clears the horizon by 4.5 degrees (road + sky in shot).</summary>
-        public const float EyePitchDown = 24f;
+        public const float EyePitchDown = 26f;
 
         /// <summary>Wide seated field of view; at 90 horizontal the vertical
         /// half-angle is ~28.5 degrees at 16:9, the window that shows the pods
@@ -146,7 +146,7 @@ namespace OpenWheelRacer
             // the round-3 drop so the sight lines to the touchscreen and the
             // pods pass through the rim OPENING (r<0.118) or outside the tube
             // (r>0.162) instead of through the arc the 0.735 height put across
-            // them. Rim top 0.842 stays a hand's width below the 1.02 eye.
+            // them. Rim top 0.842 stays a hand's width below the 1.06 eye.
             _wheel = new GameObject("Cockpit_Wheel").transform;
             _wheel.SetParent(_rig, false);
             _wheel.localPosition = new Vector3(-0.10f, 0.68f, 0.105f);

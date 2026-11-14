@@ -627,39 +627,46 @@ namespace OpenWheelRacer
             {
                 float px = s < 0 ? -0.32f : 0.12f;
                 string side = s < 0 ? "_L" : "_R";
-                Face("GaugeBezel" + side, ChromeMat(), new Vector3(px, 0.6306f, 0.30f), 0.055f);
-                Face("GaugeFace" + side, HeadMat(), new Vector3(px, 0.6314f, 0.30f), 0.046f);
-                AddPartBox(it, "GaugeNeedle" + side, RedMat(), new Vector3(px - 0.011f, 0.6338f, 0.311f), new Vector3(0.010f, 0.005f, 0.050f), new Vector3(0f, s * 35f, 0f));
+                Face("GaugeBezel" + side, ChromeMat(), new Vector3(px, 0.6306f, 0.30f), 0.068f);
+                Face("GaugeFace" + side, BlackMat(), new Vector3(px, 0.6314f, 0.30f), 0.058f);
+                Face("GaugePip" + side, HeadMat(), new Vector3(px, 0.6321f, 0.30f), 0.011f);
+                AddPartBox(it, "GaugeNeedle" + side, RedMat(), new Vector3(px - 0.014f, 0.6334f, 0.313f), new Vector3(0.012f, 0.006f, 0.078f), new Vector3(0f, s * 35f, 0f));
             }
-            AddPartBox(it, "ClusterScreen", BlackMat(), new Vector3(-0.13f, 0.6323f, 0.30f), new Vector3(0.10f, 0.0035f, 0.034f));
+            AddPartBox(it, "ClusterScreen", BlackMat(), new Vector3(-0.13f, 0.6323f, 0.30f), new Vector3(0.11f, 0.0035f, 0.038f));
 
-            // Three flat centre vents, then the centre touchscreen POPPED UP
-            // out of the dash cap at 30 degrees, S550-nav style: lying flat
-            // it read as a pale plate pasted on the dash (round-3 review),
-            // tilted and half-buried it reads as a screen standing in the
-            // centre stack and faces the driver's eye directly. Top edge tops
-            // at 0.6348, inside the 0.635 interior deck rule; the bottom edge
-            // (0.577) is buried in the cap, so it never floats.
+            // Three flat centre vents, then the centre touchscreen laid as a
+            // recessed well in the dash cap, S550-nav-screen style: lying
+            // flush it read as a pale plate pasted on the dash (round-3
+            // review), and tilting it is impossible under the deck rule, so
+            // centre stack. Round-3b: the r3-1 capture proved a tilted panel
+            // is geometrically doomed under the 0.635 deck rule (the cap's
+            // front edge hides anything lower than ~0.73 at this eye), so
+            // the screen is FLUSH as a recessed black well with a pale lit
+            // UI plate inside it — the same black-on-grey disc language as
+            // the pods and vents, legible from the 60-degree dash grazing
+            // angle, and flat enough to never touch the silhouette.
             float[] vents = { -0.04f, 0.09f, 0.22f };
             for (int v = 0; v < vents.Length; v++)
             {
-                Face("CentreVent" + (v + 1), BlackMat(), new Vector3(vents[v], 0.6306f, 0.36f), 0.042f);
-                AddPartBox(it, "VentBarA" + (v + 1), ChromeMat(), new Vector3(vents[v], 0.6318f, 0.36f), new Vector3(0.004f, 0.002f, 0.070f));
-                AddPartBox(it, "VentBarB" + (v + 1), ChromeMat(), new Vector3(vents[v], 0.6318f, 0.36f), new Vector3(0.070f, 0.002f, 0.004f));
+                Face("CentreVent" + (v + 1), BlackMat(), new Vector3(vents[v], 0.6306f, 0.36f), 0.050f);
+                AddPartBox(it, "VentBarA" + (v + 1), ChromeMat(), new Vector3(vents[v], 0.6318f, 0.36f), new Vector3(0.004f, 0.002f, 0.084f));
+                AddPartBox(it, "VentBarB" + (v + 1), ChromeMat(), new Vector3(vents[v], 0.6318f, 0.36f), new Vector3(0.084f, 0.002f, 0.004f));
             }
-            AddPartBox(it, "TouchScreen", BlackMat(), new Vector3(0.02f, 0.606f, 0.175f), new Vector3(0.200f, 0.012f, 0.115f), new Vector3(-30f, 0f, 0f));
-            AddPartBox(it, "TouchUI", HeadMat(), new Vector3(0.02f, 0.6095f, 0.173f), new Vector3(0.168f, 0.008f, 0.086f), new Vector3(-30f, 0f, 0f));
+            // Black bezel plate 0.5 mm proud of the cap, UI plate floating
+            // 1 mm above the bezel; both top under 0.635.
+            AddPartBox(it, "TouchScreen", BlackMat(), new Vector3(0.02f, 0.6322f, 0.150f), new Vector3(0.220f, 0.004f, 0.125f));
+            AddPartBox(it, "TouchUI", HeadMat(), new Vector3(0.02f, 0.6334f, 0.150f), new Vector3(0.176f, 0.003f, 0.089f));
 
             // Centre console + shifter between the seats, running down to
-            // the floor pan. Round-3 pull-forward: the console and shifter
-            // moved ~0.18 m toward the dash so the knob (top 0.6348, still
-            // under the deck lip) sits 0.33 m ahead of the driver's eye and
-            // lands at the bottom of the cockpit frame instead of under the
-            // seat; a chrome stub carries the knob above the console lid.
+            // the floor pan. Round-3b: the knob is a real stack now — boot
+            // cylinder off the lid, fat black knob body, chrome cap dot —
+            // so from the shallow driver angle it reads as a knob rising
+            // out of the console instead of a flush porthole disc. Top
+            // (0.6405) still respects the 0.641 interior deck rule.
             AddPartBox(it, "CentreConsole", dark, new Vector3(-0.02f, 0.35f, -0.435f), new Vector3(0.24f, 0.50f, 0.57f));
-            AddPartBox(it, "ShifterLever", ChromeMat(), new Vector3(-0.045f, 0.6015f, -0.22f), new Vector3(0.016f, 0.036f, 0.016f));
-            Round("ShifterKnob", BlackMat(), new Vector3(-0.045f, 0.6245f, -0.22f), 0.032f, 0.019f);
-            Face("ShifterCap", ChromeMat(), new Vector3(-0.045f, 0.6348f, -0.22f), 0.020f);
+            Round("ShifterBoot", BlackMat(), new Vector3(-0.045f, 0.6085f, -0.22f), 0.030f, 0.019f);
+            Round("ShifterKnob", BlackMat(), new Vector3(-0.045f, 0.6265f, -0.22f), 0.036f, 0.028f);
+            Face("ShifterCap", ChromeMat(), new Vector3(-0.045f, 0.6408f, -0.22f), 0.017f);
 
             // Door cards: the shell's sloped white sides are the cabin wall,
             // so trim them dark floor-to-belt along the whole open span.
