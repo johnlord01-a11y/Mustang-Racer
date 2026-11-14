@@ -1,103 +1,97 @@
 # COCKPIT-REPORT — Mustang GT cockpit pass (OpenWheelRacer)
 
-Hermes, 2026-11-13. Task: `/home/agent-exchange/for-hermes/2026-11-13-0040-from-muse-cockpit-fix-task.md`.
-Workbench: `/home/agent-exchange/projects/OpenWheelRacer` (canonical project untouched).
+Hermes, 2026-11-13. Latest task: round 3 brief
+`/home/agent-exchange/for-hermes/2026-11-13-1915-from-claude-cockpit-round3.md`.
+Workbench only: `/home/agent-exchange/projects/OpenWheelRacer` (canonical
+project untouched). History: round 1 built the interior and first cockpit
+(`cc50380`, `74d1953`); round 2 fixed the torus wheel, exterior silhouette,
+hood and chase framing (`d132ba6`, Muse checkpoint `834dcc1`). The round-1
+`cockpit-1` capture story in older revisions of this file is superseded —
+the capture watcher works; rounds 2–3 produced 20+ built sets.
 
-## Commits
+## Round-3 commits (in order, one per capture pass)
 
-- `cc50380` — Mustang interior: full GT dashboard, twin gauge pods, three vent
-  rounds, touchscreen, manual shifter, red seat inserts (`MustangMeshBuilder.cs`)
-- `74d1953` — CockpitView: seat the driver in the left-hand Mustang seat, round
-  wheel centred (`CockpitView.cs`)
+| Commit | What | Capture-pass rule |
+|---|---|---|
+| `6431740` | round-3 impl: readout removed, new eye/pitch/FOV, spread dash set, slim pillars, pop-up screen | made after r3-1 review |
+| `43a2a0d` | round-3b: flush well screen, contrast-scaled pods/vents, stacked shifter, eye 1.02→1.06, pitch 24→26 | made after r3-2 review |
+| `024d099` | round-3c: dash set grown for readability, wheel rim tube 22→29 mm + lightened | made after r3-2 review, before r3-3 |
+| `c0f57d7` | round-3d: self-lit instruments (lit UI panel, blue LCD cluster, lit red needles) | made after r3-3 review, before r3-4 |
+| `0db3eb0` | r3-4 capture artifacts | commit after r3-4 pass |
 
-Both authored `Hermes <hermes@p620.local>`.
+All four builds: `[OWR-BUILD] Succeeded scenes=2 errors=0`.
 
-## What was added
+## What changed in round 3
 
-`Assets/Scripts/MustangMeshBuilder.cs` — `BuildInterior()` rebuilt from the F1
-donor interior into the S550 layout (all names verified present in harness):
+**Fault 1 — the "N 0" plaque: removed entirely.**
+`CockpitView.cs` rewritten with no readout of any kind: no `VirtualGear`,
+`GearLabel`, `DashText`, no projected plate. Grep-verified zero references
+across scripts and tests. Tests (`CockpitDashPlayTests`,
+`CockpitViewPlayTests`) updated to assert absence.
 
-- **Dashboard**: full-width charcoal `Dash` shelf at the base of the windshield
-  (top at y 0.74, front edge z 0.37 — behind the glass line), `DashKick` knee
-  panel, chrome `DashTrim` band across the front.
-- **Twin gauge pods** (driver side, x < 0): `GaugePod_L/R` round pods,
-  `GaugeFace_L/R` black faces, red `GaugeNeedle_L/R`, `ClusterScreen` between.
-- **Three center rounds** (the S550 signature): `CentreVent1..3` + black
-  `CentreVentFace1..3` across the dash top center.
-- **Center stack + touchscreen**: `CentreStack`, tilted `TouchScreen` with
-  lit `TouchUI` face.
-- **Console + manual shifter**: `CentreConsole` tunnel running back between the
-  seats; `ShifterBoot`, `ShifterLever`, round `ShifterKnob` + chrome
-  `ShifterCap` (knob top y 0.86 — below the sight line). Manual lever only,
-  no automatic selector.
-- **Seats** (optional item, done): pan/back/headrest both sides with **red
-  leather inserts** (`SeatInsert_L/R`, `SeatBackInsert_L/R`) on charcoal —
-  John's red/black combo.
-- New geometry helpers `AddCylinderZ`/`AddDiskZ` for vertical round parts.
-  They follow the twin-winding rule: every doubled triangle goes on **separate
-  vertices**, so nothing collapses to black.
+**Fault 2 — the dash is now in frame.**
+- Camera: eye `(-0.10, 1.06, -0.55)` (was `(-0.10, 0.99, -0.55)`), pitch down
+  **26°** (was 24° at r3 start, 8° at round-2 end), hFOV **90°** (was 80°).
+  Horizon lands at ~26% frame height; sky, road, hood, dash cap, console and
+  shifter stack in natural order.
+- Wheel: centre dropped to y 0.68 so the eye looks *through the rim opening*
+  at the pods/screen instead of over an arc that barred them; hub slimmed to
+  8.8 cm; rim tube thickened 22→29 mm and lightened (0.15→0.22 grey) so the
+  lower arc reads against the dark dash front.
+- Dash set spread for the new sight lines: pods x −0.32/+0.12, cluster LCD
+  x −0.13, vents x −0.04/0.09/0.22, screen centred x 0.02.
+- Touchscreen: a tilted pop-up proved geometrically impossible under the
+  0.641 deck rule at this eye (the cap front edge hides anything below ~0.73
+  at 0.85 m); it is now a **flush black well with a lit UI plate floating
+  ~3 mm proud** (top y 0.6378, inside the rule).
+- A-pillars slimmed from 50 mm slabs to 32×38 mm posts.
+- Contrast/scale (r3-3) then self-lit materials (r3-4): the sky rig leaves
+  the cabin in shade — black dials on the grey cap measured a 0.94 luminance
+  ratio at the 60° graze — so powered instruments carry their own light:
+  `LitPanelMat` (touchscreen UI, pale blue-white), `LcdMat` (cluster, blue),
+  `NeedleMat` (lit red needles). Chrome bezels/rings/vent bars stay
+  emissive-free.
+- Shifter: boot + 84 mm black knob + chrome cap dot, topping y 0.6405, inside
+  the deck rule.
 
-`CockpitView.cs` — whole file rewritten:
+## Per-criterion self-verdict (from r3-4 `frame_01_cockpit`, pixels + crops)
 
-- **Round 3-spoke wheel** replacing the rectangular F1 wheel: 14-segment dark
-  rim (`Wheel_Rim0..13`, 0.37 m diameter), silver spokes L/R/bottom, dark hub
-  inside a silver `Wheel_HubRing`, and a **silver-ringed round badge**
-  (`Wheel_BadgeRing` + `Wheel_BadgePlate`) — the brief's minimum; no
-  galloping-horse silhouette.
-- Wheel **rotates with steering input** (`-WheelAngleFor(_car.CurrentSteerAngle)`
-  applied as roll, plus its natural dash angle), hands and column follow.
-- The old "N 0" readout is gone: the plate now carries a **gear + km/h
-  readout** derived from the car's actual speed (`VirtualGear`, 1–8, R/N).
-- Wheel/column/hands re-centred to x = -0.35, over the **left** seat.
+| Criterion (brief) | Verdict | Evidence |
+|---|---|---|
+| Dash top/face visible | PASS | cap band renders at predicted rows (luminance profile) |
+| Twin gauge pods visible | PASS | black discs + chrome rings at predicted px (column dips at 557/723), red needles seen as bright red marks in 2.5× crop review |
+| Three centre rounds visible | PASS with caveat | dark discs + chrome cross bars (bars sampled 255,255,255); at the 60° graze they read as recesses with bright bars, not textbook round vents |
+| Touchscreen visible | PASS | black well + lit pale UI plate; hot-pixel map shows a bright block at the screen's predicted position |
+| Shifter visible | PASS | knob ring + chrome cap at lower centre (~74% frame height) |
+| No plaque readout | PASS | readout code deleted; vision pass found no text plate |
+| Hood sloped, not a slab | PASS (round-2 geometry kept) | road and horizon visible ahead of the cap; no hood changes were needed |
+| Pillars realistic width | PASS | 32 mm posts; earlier r3 vision: "thin posts" |
+| Torus rim + black hub kept | PASS | rim torus whole (two vision passes mis-read its dark lower arc as "open"; pixel profile shows the closed ring) |
+| Nothing interior above body line | PASS | all interior tops ≤ 0.6405 < 0.641; deck test asserts < 0.641 |
+| Chase framing unregressed | PASS | frames 02–04 composition identical across r3-1…r3-4; opponent color clusters (blue `28509A`, red `D44E47`) unchanged first-to-last set |
+| Separate-vertices rule / no collapsed normals | PASS | no winding code touched; four clean Unity builds; chase shading correct |
+| Opponents render in color | PASS | saturated blue/red clusters present in r3-4 chase pack |
 
-**Hood and windshield frame**: already part of the Mustang body — they were
-invisible because the F1 cockpit camera sat at (0, 1.16, −0.20), centerline and
-above a believable eye, inside a donor interior. Now that the driver sits in
-the left seat the hood runs away ahead below the sight line (harness: all body
-ahead of z 1.2 tops out well below eye height), and `Pillar_L/R` + `Header`
-frame the view. The car's own glass stays hidden in cockpit view (b1fa5f9
-behavior preserved — harness still finds exactly 1 own-glass).
+## Honest limitations
 
-## Camera change (as required, stated exactly)
-
-- Eye `Vector3(0, 1.16, -0.20)` → `Vector3(-0.22, 0.99, -0.24)` — left seat,
-  real seated eye height, back from the seat front.
-- Added `EyePitchDown = 8f`: cockpit camera pitches 8° down so dash, wheel
-  and shifter compose naturally.
-- Added `CockpitFieldOfView = 80f` applied on entering cockpit view and
-  restored to the camera's default on exit (chase frames unaffected).
-- Chase camera positions: unchanged.
-
-## Verification so far
-
-- Local harness (`/home/hermes/cockpit-verify`, compiles the real builder
-  against Unity-semantics stubs — same rig as the black-body task): **all
-  checks pass** — 90 mesh parts, 17,808 verts with **zero collapsed normals**
-  (no black-part regression), all 34 named interior parts present, sight line
-  from the new eye clear of body geometry except the glass you look through,
-  dash/hood/gauge/shifter placement as intended.
-- Existing `mustang-verify` suite (64 old body parts): still passes.
-
-## Capture
-
-- Label: **`cockpit-1`**, request file
-  `/home/agent-exchange/capture-requests/cockpit-1.req` (brief format, line 1
-  = workbench path, line 2 = `cockpit-1`).
-- **Status: not yet built.** The request has sat unconsumed for 40+ minutes
-  although `owr-capture-watcher.sh` (p620-side, pid 516479) is alive — it
-  stopped consuming requests around 01:36 (last activity). Format and
-  cleanliness were each re-tested (`smoke-baseline` consumed fine from this
-  directory at 00:09). A note went to
-  `/home/agent-exchange/for-openclaw/2026-11-13-0510-from-hermes-watcher-idle.md`
-  asking the p620 side to restart the watcher; the queued request should then
-  build by itself. Once `captures/cockpit-1/RESULT.md` shows
-  `[OWR-BUILD] Succeeded, errors=0` I will inspect `frame_01_cockpit` against
-  the reference photos and iterate if needed.
+- **Unity test suite was not run.** No Unity Editor/assemblies are reachable
+  from this account. Gate: Roslyn syntax compile of `Assets/Scripts` +
+  `Assets/Tests/PlayMode` (clean apart from pre-existing reference-assembly
+  noise in `RacePhoto.cs`) plus the p620 watcher's real Unity **build**
+  (Succeeded, errors=0, all four sets). Run the PlayMode tests in the Editor
+  before merging.
+- The vision model repeatedly mis-described small parts (called the closed
+  rim "open", missed parts that pixel sampling found on-model). Every verdict
+  above is backed by pixel samples, column-luminance profiles and hot-pixel
+  maps at modelled positions, with vision prose used as a secondary read.
+- The vent rounds are the weakest item at this camera angle. If Muse wants
+  textbook-visible rounds, the lever is a lower/less-pitched eye — which
+  re-breaks the shifter/hood composition. Left as-is per the STOP rule.
+- Iterations used: 4 of 4 (r3-1…r3-4). No fifth set was made.
 
 ## Deliberately left undone
 
-- Galloping-horse badge silhouette — used the brief's accepted fallback
-  (silver-ringed round badge).
-- Door top rails at dash height (brief optional) — not built.
-- Pedals (visible in ref-4 but not on the build list) — not built.
-- Nothing else outstanding from the brief, pending capture verification.
+- A readout rendered on the touchscreen surface (allowed, not required —
+  "no readout visible at all" was the brief's simplest acceptable outcome and
+  is what shipped).
+- Anything round 2 already fixed: silhouette, hood, chase framing, wheel.
