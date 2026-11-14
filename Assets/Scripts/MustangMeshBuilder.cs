@@ -690,9 +690,13 @@ namespace OpenWheelRacer
                 Face("GaugeTickS" + side, UiSlotMat(), new Vector3(px, 0.6385f, 0.264f), 0.010f);
                 Face("GaugeTickW" + side, UiSlotMat(), new Vector3(px - 0.056f, 0.6385f, 0.320f), 0.010f);
                 Face("GaugeTickE" + side, UiSlotMat(), new Vector3(px + 0.056f, 0.6385f, 0.320f), 0.010f);
+                // BUG FIX (r4-3 audit): AddPartBox takes (pos, SIZE, euler)
+                // — the needle call had size/euler swapped, so the needle's
+                // "size" was (0, 33, 0): zero volume, invisible in every
+                // render since round 4 began. Args corrected here.
                 AddPartBox(it, "GaugeNeedle" + side, NeedleMat(),
                     new Vector3(px + nd.x * 0.036f, 0.6394f, 0.320f + nd.z * 0.036f),
-                    new Vector3(0f, yaw, 0f), new Vector3(0.020f, 0.008f, 0.088f));
+                    new Vector3(0.020f, 0.008f, 0.088f), new Vector3(0f, yaw, 0f));
             }
             // Blue LCD strip between the pod rows, ahead of the steering
             // column (column tops out z 0.387 — strip starts 0.397; pod
@@ -727,22 +731,24 @@ namespace OpenWheelRacer
             AddPartBox(it, "TouchUIslotRowB", UiSlotMat(), new Vector3(0.120f, 0.6380f, 0.115f), new Vector3(0.075f, 0.0016f, 0.022f));
             AddPartBox(it, "TouchUIslotRowC", UiSlotMat(), new Vector3(0.120f, 0.6380f, 0.158f), new Vector3(0.075f, 0.0016f, 0.022f));
 
-            // Shifter that reads as SHIFTING (brief). r4-2 crop verdict:
-            // a 16 mm-tall black cylinder on a same-colour cap reads as a
-            // FLAT RING, no height. Deck rule keeps the stack under
-            // 0.641, so the height is spent on contrast steps: black boot
-            // 24 mm, visible BRIGHT stem band, black knob, bright cap dot
-            // — a wedding-cake silhouette whose side walls read even flat
-            // shaded. Stack stands behind the cap edge on the console lid
-            // so it silhouettes against the seat.
+            // Shifter that reads as SHIFTING. r4-3 crop verdict: the cap
+            // disc was the SAME material as the gate under it and the
+            // knob is an uncapped tube, so the whole stack rendered as one
+            // flat bright plate with a black ring — zero height cues. Cure
+            // (deck rule < 0.641 caps total height at ~40 mm): ALTERNATE
+            // light/dark at every step — dark gate plate, bright boot, dark
+            // slim stem, dark Ø60 knob, bright cap dot offset 8 mm
+            // forward. The parallax crescent between layers (14 mm at the
+            // 62-degree sight depression) and the eccentric cap give the
+            // stack ball-like 3D cues a flat disc can never fake.
             // Centre console between the seats, running down to the floor
             // pan; the shifter stack above stands on its lid (top y 0.6).
             AddPartBox(it, "CentreConsole", dark, new Vector3(-0.02f, 0.35f, -0.435f), new Vector3(0.24f, 0.50f, 0.57f));
-            AddPartBox(it, "ShifterGate", LightTrimMat(), new Vector3(-0.05f, 0.6011f, -0.33f), new Vector3(0.130f, 0.002f, 0.105f));
-            Round("ShifterBoot", BlackMat(), new Vector3(-0.05f, 0.6085f, -0.33f), 0.046f, 0.024f);
-            Round("ShifterStem", LightTrimMat(), new Vector3(-0.05f, 0.6235f, -0.33f), 0.014f, 0.014f);
-            Round("ShifterKnob", BlackMat(), new Vector3(-0.05f, 0.6305f, -0.33f), 0.040f, 0.017f);
-            Face("ShifterCap", LightTrimMat(), new Vector3(-0.05f, 0.6394f, -0.33f), 0.027f);
+            AddPartBox(it, "ShifterGate", UiSlotMat(), new Vector3(-0.05f, 0.6011f, -0.33f), new Vector3(0.120f, 0.002f, 0.095f));
+            Round("ShifterBoot", LightTrimMat(), new Vector3(-0.05f, 0.6075f, -0.33f), 0.042f, 0.014f);
+            Round("ShifterStem", BlackMat(), new Vector3(-0.05f, 0.6190f, -0.33f), 0.015f, 0.018f);
+            Round("ShifterKnob", BlackMat(), new Vector3(-0.05f, 0.6310f, -0.33f), 0.030f, 0.014f);
+            Face("ShifterCap", LightTrimMat(), new Vector3(-0.05f, 0.6385f, -0.322f), 0.017f);
 
             // Door cards: the shell's sloped white sides are the cabin wall,
             // so trim them dark floor-to-belt along the whole open span.
