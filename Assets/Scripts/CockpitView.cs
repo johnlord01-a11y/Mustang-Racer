@@ -22,17 +22,18 @@ namespace OpenWheelRacer
     {
         /// <summary>Driver eye in the LEFT seat, dead ahead of the twin gauge
         /// pods and centred over the wheel; z clears the seat back. Seated at
-        /// y 0.88 — head just above the 0.641 deck line like a real open-top
-        /// GT (the round-1 0.99 eye sat too high and looked down its nose at
-        /// the dash): the dash lip, shifter knob and gauge pod faces all land
-        /// in the lower third of frame, the A-pillars cross the sides and the
-        /// glass base edge crosses the bottom, framing road and white cowl
-        /// ahead like ref-4.</summary>
-        public static readonly Vector3 EyeLocal = new Vector3(-0.22f, 0.88f, -0.24f);
+        /// y 1.02, z -0.34, x -0.30 (round-2 lesson: sit the eye directly
+        /// behind the offset GT wheel, over the driver seat at x -0.35): an eye at
+        /// head height over the tub sees DOWN onto the 0.636 dash cap, the
+        /// seat-back tops frame the shoulders, and the eye sits BACK of the
+        /// wheel so the slimmed hub clears the gauge pods instead of eating
+        /// them. Near-centre seating keeps the driver's own door card and
+        /// the centre stack both in the frame like ref-4.</summary>
+        public static readonly Vector3 EyeLocal = new Vector3(-0.10f, 1.02f, -0.34f);
 
         /// Slight downward pitch so hood, dash and shifter compose naturally
         /// in the lower half while the road fills the top (matches ref-4).
-        public const float EyePitchDown = 8f;
+        public const float EyePitchDown = 10f;
 
         /// Wider seated field of view than the chase camera restores; at 16:9
         /// the vertical half-angle is ~27 degrees, which frames the gauge pods,
@@ -175,7 +176,9 @@ namespace OpenWheelRacer
         {
             var black = MakeMaterial(new Color(0.045f, 0.045f, 0.05f));
             var carbon = MakeMaterial(new Color(0.08f, 0.08f, 0.09f));
-            var silver = MakeMaterial(new Color(0.72f, 0.73f, 0.75f));
+            var gunmetal = MakeMaterial(new Color(0.30f, 0.31f, 0.34f));
+            var rimDark = MakeMaterial(new Color(0.15f, 0.15f, 0.17f));
+            var silver = MakeMaterial(new Color(0.85f, 0.86f, 0.88f));
             var navy = MakeMaterial(new Color(0.10f, 0.10f, 0.13f));
 
             _rig = new GameObject("Cockpit_Rig").transform;
@@ -187,14 +190,14 @@ namespace OpenWheelRacer
             // eye line like the reference (round-1's 0.86 centre read high).
             _wheel = new GameObject("Cockpit_Wheel").transform;
             _wheel.SetParent(_rig, false);
-            _wheel.localPosition = new Vector3(-0.35f, 0.735f, 0.24f);
+            _wheel.localPosition = new Vector3(-0.10f, 0.735f, 0.105f);
             // Joined torus rim, one closed mesh (round 1's fourteen separate
             // cubes gapped into a scalloped ring in every cockpit frame).
-            MeshPiece("Wheel_Rim", _wheel, Vector3.zero, Vector3.zero, BuildRimMesh(0.185f, 0.024f, 32, 12), black);
+            MeshPiece("Wheel_Rim", _wheel, Vector3.zero, Vector3.zero, BuildRimMesh(0.140f, 0.022f, 32, 12), rimDark);
             // Three silver spokes; small dark button pads outboard on the pair.
-            Piece("Wheel_SpokeL", PrimitiveType.Cube, _wheel, new Vector3(-0.105f, 0.008f, 0f), Vector3.zero, new Vector3(0.16f, 0.030f, 0.024f), silver);
-            Piece("Wheel_SpokeR", PrimitiveType.Cube, _wheel, new Vector3(0.105f, 0.008f, 0f), Vector3.zero, new Vector3(0.16f, 0.030f, 0.024f), silver);
-            Piece("Wheel_SpokeB", PrimitiveType.Cube, _wheel, new Vector3(0f, -0.105f, 0f), Vector3.zero, new Vector3(0.030f, 0.16f, 0.024f), silver);
+            Piece("Wheel_SpokeL", PrimitiveType.Cube, _wheel, new Vector3(-0.084f, -0.030f, 0f), Vector3.zero, new Vector3(0.125f, 0.030f, 0.024f), silver);
+            Piece("Wheel_SpokeR", PrimitiveType.Cube, _wheel, new Vector3(0.084f, -0.030f, 0f), Vector3.zero, new Vector3(0.125f, 0.030f, 0.024f), silver);
+            Piece("Wheel_SpokeB", PrimitiveType.Cube, _wheel, new Vector3(0f, -0.082f, 0f), Vector3.zero, new Vector3(0.030f, 0.128f, 0.024f), silver);
             Piece("Wheel_PadL", PrimitiveType.Cube, _wheel, new Vector3(-0.115f, 0.032f, 0.016f), Vector3.zero, new Vector3(0.075f, 0.040f, 0.012f), black);
             Piece("Wheel_PadR", PrimitiveType.Cube, _wheel, new Vector3(0.115f, 0.032f, 0.016f), Vector3.zero, new Vector3(0.075f, 0.040f, 0.012f), black);
             // Hub: DARK centre pad inside a slim silver bezel — the reference
@@ -203,28 +206,24 @@ namespace OpenWheelRacer
             // compact galloping-pony silhouette of six small silver boxes
             // (body, neck, head, two legs, tail) at ~2/3 round-1 scale, flat
             // on the pad — no image assets, no chrome ring around it.
-            Piece("Wheel_HubRing", PrimitiveType.Cylinder, _wheel, new Vector3(0f, 0.003f, 0.006f), new Vector3(90f, 0f, 0f), new Vector3(0.136f, 0.032f, 0.136f), silver);
-            Piece("Wheel_Hub", PrimitiveType.Cylinder, _wheel, new Vector3(0f, 0.003f, 0.010f), new Vector3(90f, 0f, 0f), new Vector3(0.120f, 0.016f, 0.120f), carbon);
-            Piece("Pony_Body", PrimitiveType.Cube, _wheel, new Vector3(0.002f, 0.003f, 0.026f), new Vector3(0f, 0f, -12f), new Vector3(0.020f, 0.007f, 0.005f), silver);
-            Piece("Pony_Neck", PrimitiveType.Cube, _wheel, new Vector3(0.0105f, 0.0085f, 0.026f), new Vector3(0f, 0f, 28f), new Vector3(0.006f, 0.010f, 0.005f), silver);
-            Piece("Pony_Head", PrimitiveType.Cube, _wheel, new Vector3(0.0143f, 0.0137f, 0.026f), new Vector3(0f, 0f, 12f), new Vector3(0.006f, 0.004f, 0.005f), silver);
-            Piece("Pony_LegF", PrimitiveType.Cube, _wheel, new Vector3(0.0091f, -0.0046f, 0.026f), new Vector3(0f, 0f, 28f), new Vector3(0.011f, 0.004f, 0.005f), silver);
-            Piece("Pony_LegR", PrimitiveType.Cube, _wheel, new Vector3(-0.0091f, -0.004f, 0.026f), new Vector3(0f, 0f, 205f), new Vector3(0.011f, 0.004f, 0.005f), silver);
-            Piece("Pony_Tail", PrimitiveType.Cube, _wheel, new Vector3(-0.013f, 0.0065f, 0.026f), new Vector3(0f, 0f, 160f), new Vector3(0.010f, 0.004f, 0.005f), silver);
-            // Speed/gear readout anchor: the centre touchscreen's lit UI panel
-            // (body TouchUI at 0.03, 0.5765, 0.133), NOT the wheel, so the
-            // digits stay glued to the screen while the wheel spins. Invisible
-            // transform, no renderer, no collider.
+            Piece("Wheel_HubRing", PrimitiveType.Cylinder, _wheel, new Vector3(0f, 0.003f, -0.006f), new Vector3(90f, 0f, 0f), new Vector3(0.118f, 0.010f, 0.118f), black);
+            // Speed/gear readout anchor: the centre touchscreen's lit UI
+            // panel (body TouchUI at 0.02, 0.6325, 0.15), NOT the wheel, so
+            // the digits stay glued to the screen while the wheel spins.
+            // Invisible transform, no renderer, no collider.
             var dashGo = new GameObject("Dash_Readout");
             dashGo.transform.SetParent(_rig, false);
-            dashGo.transform.localPosition = new Vector3(0.03f, 0.5765f, 0.133f);
+            dashGo.transform.localPosition = new Vector3(0.02f, 0.6335f, 0.150f);
             _dash = dashGo.transform;
             // Navy gloves gripping the rim at 9 and 3.
-            Piece("Hand_L", PrimitiveType.Capsule, _wheel, new Vector3(-0.178f, 0.045f, -0.012f), new Vector3(0f, 0f, 72f), new Vector3(0.062f, 0.088f, 0.062f), navy);
-            Piece("Hand_R", PrimitiveType.Capsule, _wheel, new Vector3(0.178f, 0.045f, -0.012f), new Vector3(0f, 0f, -72f), new Vector3(0.062f, 0.088f, 0.062f), navy);
-            // Short column sloping from the hub into the dash face (follows
-            // the lowered wheel; reaches down to the dash top at y 0.575).
-            Piece("Wheel_Column", PrimitiveType.Cylinder, _rig, new Vector3(-0.35f, 0.645f, 0.30f), new Vector3(147f, 0f, 0f), new Vector3(0.044f, 0.23f, 0.044f), black);
+            Piece("Hand_L", PrimitiveType.Capsule, _wheel, new Vector3(-0.152f, 0.038f, -0.012f), new Vector3(0f, 0f, 72f), new Vector3(0.062f, 0.088f, 0.062f), navy);
+            Piece("Hand_R", PrimitiveType.Capsule, _wheel, new Vector3(0.152f, 0.038f, -0.012f), new Vector3(0f, 0f, -72f), new Vector3(0.062f, 0.088f, 0.062f), navy);
+            // Short column from the hub down through the open tub into the
+            // dash front panel (cap front face z 0.43, top 0.630; the wheel
+            // plane z 0.105 clears the driver cut-out rear edge z 0.21).
+            // Column as two crisp angled boxes: hub -> mid -> dash (boxes silhouette better than lit cylinders).
+            Piece("Wheel_ColumnA", PrimitiveType.Cube, _rig, new Vector3(-0.10f, 0.695f, 0.170f), new Vector3(-58.4f, 0f, 0f), new Vector3(0.055f, 0.160f, 0.055f), silver);
+            Piece("Wheel_ColumnB", PrimitiveType.Cube, _rig, new Vector3(-0.10f, 0.615f, 0.325f), new Vector3(-66.0f, 0f, 0f), new Vector3(0.055f, 0.205f, 0.055f), silver);
         }
 
         private static GameObject MeshPiece(string name, Transform parent, Vector3 pos, Vector3 euler, Mesh mesh, Material m)

@@ -287,12 +287,30 @@ namespace OpenWheelRacer
                         new Vector3(side * c.wBot * 0.5f, yBot, c.z),
                         new Vector3(side * c.wTop * 0.5f, c.yTop, c.z),
                         new Vector3(side * a.wTop * 0.5f, a.yTop, a.z));
-                    // top skin (deck / hood edge / nose) from centre out to wall
+                    // Top skin (deck / hood edge / nose) from centre out to
+                    // the wall -- EXCEPT over the cabin span, where only the
+                    // belt shoulders (x 0.62 out to the walls) are plated and
+                    // the cockpit tub stays open like a real open-top GT.
+                    // The v1 "interior rides on a closed white plate" design
+                    // z-fought into invisibility (cockpit-3 review); an open
+                    // tub lets the driver see his own cabin, while every
+                    // interior top (dash cap 0.630, seat backs 0.6325) stays
+                    // under the 0.635 deck lip, so chase silhouettes stay
+                    // clean. Both section sides emit, same twin-winding
+                    // pattern as the original full-width skin.
                     if (a.wTop > 0.02f && c.wTop > 0.02f)
                     {
+                        bool openTub = a.z > -0.95f && c.z < 0.44f;
+                        float aIn = openTub ? 0.62f : 0.06f - a.wTop * 0.5f;
+                        float cIn = openTub ? 0.62f : 0.06f - c.wTop * 0.5f;
                         b.Quad(
-                            new Vector3(-a.wTop * 0.5f + 0.06f, a.yTop, a.z),
-                            new Vector3(-c.wTop * 0.5f + 0.06f, c.yTop, c.z),
+                            new Vector3(-aIn, a.yTop, a.z),
+                            new Vector3(-cIn, c.yTop, c.z),
+                            new Vector3(-(c.wTop * 0.5f - 0.06f), c.yTop, c.z),
+                            new Vector3(-(a.wTop * 0.5f - 0.06f), a.yTop, a.z));
+                        b.Quad(
+                            new Vector3(aIn, a.yTop, a.z),
+                            new Vector3(cIn, c.yTop, c.z),
                             new Vector3(c.wTop * 0.5f - 0.06f, c.yTop, c.z),
                             new Vector3(a.wTop * 0.5f - 0.06f, a.yTop, a.z));
                     }
@@ -573,56 +591,65 @@ namespace OpenWheelRacer
                 PartFromBuilder(it, n, b, m);
             }
 
-            // Dash shelf under the windshield (front edge tucked behind the
-            // glass line), knee panel below, chrome accent across the front.
-            //
-            // INTERIOR SCALE LAW (round 2, 2026-11-13): the body's cabin
-            // silhouette in every chase frame is the rear-deck / belt line
-            // (y 0.641) and the windshield base (y 0.615). The round-1 dash
-            // crested y 0.74 and the pods/knobs/headrests 0.83-1.07, so from
-            // behind they read as a grey slab sticking above the deck -- the
-            // artifact this round must erase. Nothing built below may top
-            // 0.615 except the seat backs (max 0.631, still under the deck
-            // line 0.641); the driver eye sits at y 0.88 (CockpitView) and
-            // still sees every element in the frame's lower half.
-            AddPartBox(it, "Dash", dark, new Vector3(-0.01f, 0.505f, 0.25f), new Vector3(1.32f, 0.14f, 0.24f));
-            AddPartBox(it, "DashKick", dark, new Vector3(-0.01f, 0.40f, 0.30f), new Vector3(1.28f, 0.16f, 0.20f));
-            AddPartBox(it, "DashTrim", ChromeMat(), new Vector3(-0.01f, 0.565f, 0.124f), new Vector3(1.24f, 0.030f, 0.012f));
+            // INTERIOR SCALE LAW (round 2, 2026-11-13, v2): the shell keeps
+            // its top skin everywhere except the cabin span (BuildBodyShell
+            // "openTub"), so the tub is open like a real open-top GT and the
+            // driver sees HIS OWN cabin instead of the white plate that
+            // z-fought the v1 flush design into invisibility (cockpit-3
+            // review). Law: the tub is closed by four dark walls (DashFront,
+            // BackPanel, door cards, FloorPan) plus a full-width dash cap
+            // whose top y 0.630 the driver looks down onto from eye 0.88;
+            // gauges, vents and screens lie ON the cap 0.6-4 mm proud, never
+            // floating. Nothing interior tops the 0.635 deck lip (cap 0.630,
+            // seat backs 0.6325, shifter cap 0.6302), so every chase frame
+            // still silhouettes as bare bodywork plus two seat backs.
+            AddPartBox(it, "DashMain", dark, new Vector3(0.215f, 0.6175f, 0.045f), new Vector3(0.84f, 0.025f, 0.77f));
+            AddPartBox(it, "DashDriver", dark, new Vector3(-0.385f, 0.6175f, 0.320f), new Vector3(0.48f, 0.025f, 0.22f));
+            AddPartBox(it, "WheelTubFill", dark, new Vector3(-0.385f, 0.325f, 0.105f), new Vector3(0.46f, 0.45f, 0.22f));
+            AddPartBox(it, "DashFront", dark, new Vector3(0.0025f, 0.3675f, 0.395f), new Vector3(1.25f, 0.535f, 0.07f));
+            AddPartBox(it, "BackPanel", dark, new Vector3(0.0025f, 0.367f, -0.87f), new Vector3(1.25f, 0.534f, 0.06f));
+            AddPartBox(it, "FloorPan", dark, new Vector3(-0.01f, 0.095f, -0.24f), new Vector3(1.30f, 0.01f, 1.72f));
 
-            // Twin round gauge pods on the dash lip (tops 0.61, inside the
-            // glass-base cap), black faces, red needles, small bright cluster
-            // screen between them (2015-17 GT pattern).
-            Round("GaugePod_L", dark, new Vector3(-0.40f, 0.585f, 0.21f), 0.055f, 0.05f);
-            Round("GaugePod_R", dark, new Vector3(-0.135f, 0.585f, 0.21f), 0.055f, 0.05f);
-            Face("GaugeFace_L", BlackMat(), new Vector3(-0.40f, 0.6115f, 0.21f), 0.045f);
-            Face("GaugeFace_R", BlackMat(), new Vector3(-0.135f, 0.6115f, 0.21f), 0.045f);
-            AddPartBox(it, "GaugeNeedle_L", RedMat(), new Vector3(-0.389f, 0.6125f, 0.226f), new Vector3(0.005f, 0.005f, 0.038f), new Vector3(0f, 35f, 0f));
-            AddPartBox(it, "GaugeNeedle_R", RedMat(), new Vector3(-0.124f, 0.6125f, 0.226f), new Vector3(0.005f, 0.005f, 0.038f), new Vector3(0f, -35f, 0f));
-            AddPartBox(it, "ClusterScreen", HeadMat(), new Vector3(-0.2675f, 0.585f, 0.225f), new Vector3(0.10f, 0.032f, 0.012f));
+            // Twin flat gauge pods on the driver's dash shelf (chrome bezel,
+            // black face, red needle) and the lit cluster screen between
+            // them -- the 2015-17 GT pattern laid flat on the cap.
+            foreach (int s in new[] { -1, 1 })
+            {
+                float px = s < 0 ? -0.22f : 0.02f;
+                string side = s < 0 ? "_L" : "_R";
+                Face("GaugeBezel" + side, ChromeMat(), new Vector3(px, 0.6306f, 0.30f), 0.055f);
+                Face("GaugeFace" + side, HeadMat(), new Vector3(px, 0.6314f, 0.30f), 0.046f);
+                AddPartBox(it, "GaugeNeedle" + side, RedMat(), new Vector3(px - 0.011f, 0.6338f, 0.311f), new Vector3(0.010f, 0.005f, 0.050f), new Vector3(0f, s * 35f, 0f));
+            }
+            AddPartBox(it, "ClusterScreen", BlackMat(), new Vector3(-0.10f, 0.6323f, 0.30f), new Vector3(0.10f, 0.0035f, 0.034f));
 
-            // Three round centre vents on the dash lip (tops 0.6125, inside
-            // the glass-base cap), then the touchscreen standing on the
-            // centre stack, bright UI panel facing the driver -- the screen
-            // centre (0.03, 0.573, 0.145) is where the dash readout is
-            // anchored in CockpitView, so it must stay there.
-            float[] vents = { 0.16f, 0.325f, 0.49f };
+            // Three flat centre vents, then the centre touchscreen flat on
+            // the cap with its lit UI panel -- the TouchUI centre
+            // (0.02, 0.6325, 0.15) is where the dash readout is anchored in
+            // CockpitView, so it must stay there.
+            float[] vents = { 0.14f, 0.27f, 0.40f };
             for (int v = 0; v < vents.Length; v++)
             {
-                Round("CentreVent" + (v + 1), dark, new Vector3(vents[v], 0.585f, 0.24f), 0.048f, 0.055f);
-                Face("CentreVentFace" + (v + 1), BlackMat(), new Vector3(vents[v], 0.6135f, 0.24f), 0.036f);
+                Face("CentreVent" + (v + 1), BlackMat(), new Vector3(vents[v], 0.6306f, 0.36f), 0.042f);
+                AddPartBox(it, "VentBarA" + (v + 1), ChromeMat(), new Vector3(vents[v], 0.6318f, 0.36f), new Vector3(0.004f, 0.002f, 0.070f));
+                AddPartBox(it, "VentBarB" + (v + 1), ChromeMat(), new Vector3(vents[v], 0.6318f, 0.36f), new Vector3(0.070f, 0.002f, 0.004f));
             }
-            AddPartBox(it, "CentreStack", dark, new Vector3(0.03f, 0.47f, 0.06f), new Vector3(0.26f, 0.26f, 0.16f));
-            AddPartBox(it, "TouchScreen", BlackMat(), new Vector3(0.03f, 0.573f, 0.145f), new Vector3(0.175f, 0.075f, 0.016f), new Vector3(18f, 0f, 0f));
-            AddPartBox(it, "TouchUI", HeadMat(), new Vector3(0.03f, 0.5765f, 0.133f), new Vector3(0.148f, 0.060f, 0.006f), new Vector3(18f, 0f, 0f));
+            AddPartBox(it, "TouchScreen", BlackMat(), new Vector3(0.02f, 0.6310f, 0.150f), new Vector3(0.200f, 0.006f, 0.115f));
+            AddPartBox(it, "TouchUI", HeadMat(), new Vector3(0.02f, 0.6325f, 0.150f), new Vector3(0.168f, 0.004f, 0.086f));
 
-            // Centre console + manual shifter: lever in a boot, knob with the
-            // chrome collar, right where the driver's hand falls -- whole
-            // stack capped at 0.61 so it never crosses the silhouette line.
-            AddPartBox(it, "CentreConsole", dark, new Vector3(-0.02f, 0.46f, -0.15f), new Vector3(0.25f, 0.12f, 0.56f));
-            AddPartBox(it, "ShifterBoot", DarkTrimMat(), new Vector3(-0.04f, 0.523f, 0.06f), new Vector3(0.11f, 0.026f, 0.13f));
-            AddPartBox(it, "ShifterLever", BlackMat(), new Vector3(-0.04f, 0.545f, 0.056f), new Vector3(0.026f, 0.13f, 0.026f));
-            Round("ShifterCap", ChromeMat(), new Vector3(-0.04f, 0.5525f, 0.053f), 0.024f, 0.008f);
-            Round("ShifterKnob", BlackMat(), new Vector3(-0.04f, 0.585f, 0.053f), 0.036f, 0.05f);
+            // Centre console + shifter between the seats, running down to
+            // the floor pan; the knob cap tops at 0.6302, under the deck lip.
+            AddPartBox(it, "CentreConsole", dark, new Vector3(-0.02f, 0.35f, -0.51f), new Vector3(0.24f, 0.50f, 0.44f));
+            Round("ShifterKnob", BlackMat(), new Vector3(-0.045f, 0.6205f, -0.40f), 0.032f, 0.019f);
+            Face("ShifterCap", ChromeMat(), new Vector3(-0.045f, 0.6302f, -0.40f), 0.020f);
+
+            // Door cards: the shell's sloped white sides are the cabin wall,
+            // so trim them dark floor-to-belt along the whole open span.
+            for (int s = -1; s <= 1; s += 2)
+            {
+                AddPartBox(it, "DoorCard" + (s > 0 ? "_R" : "_L"), dark,
+                    new Vector3(s * 0.735f, 0.36f, -0.24f), new Vector3(0.12f, 0.52f, 1.32f));
+            }
 
             // Seats with red inserts (pan and back carry a red centre panel
             // each, the GT two-tone look). Back tops stop at 0.631, under the
