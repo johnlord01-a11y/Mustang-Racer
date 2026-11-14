@@ -66,7 +66,7 @@ namespace OpenWheelRacer
 
         static Material _glass, _black, _chrome, _red, _amber, _interior,
                         _darkTrim, _tire, _rim, _stripe, _head,
-                        _litPanel, _lcd, _needle, _dial, _uiSlot;
+                        _litPanel, _lcd, _needle, _dial, _uiSlot, _lightTrim;
 
         static Material Surface(string name, Color c, float metallic, float gloss, Color? emis = null)
         {
@@ -150,6 +150,11 @@ namespace OpenWheelRacer
 
         static Material BlackMat() { return Cached(ref _black, "OwrBlack", new Color(0.045f, 0.045f, 0.05f), 0.25f, 0.8f); }
         static Material ChromeMat() { return Cached(ref _chrome, "OwrChrome", new Color(0.75f, 0.76f, 0.78f), 1f, 0.95f); }
+        // Round 4 r4-1 verdict: full-metal chrome renders BLACK in the
+        // shaded cabin (no reflection probe), so the "chrome" vent rings
+        // and bezels read as dark holes. Bright matte silver trim with a
+        // hair of emission reads as metal in ANY light.
+        static Material LightTrimMat() { return Cached(ref _lightTrim, "OwrLightTrim", new Color(0.62f, 0.63f, 0.66f), 0f, 0.75f, new Color(0.10f, 0.10f, 0.11f)); }
         static Material RedMat() { return Cached(ref _red, "OwrRedLens", new Color(0.55f, 0.03f, 0.04f), 0.1f, 0.7f); }
         static Material AmberMat() { return Cached(ref _amber, "OwrAmber", new Color(0.85f, 0.35f, 0.05f), 0.1f, 0.7f); }
         static Material InteriorMat() { return Cached(ref _interior, "OwrInterior", new Color(0.10f, 0.10f, 0.115f), 0.05f, 0.35f); }
@@ -637,7 +642,12 @@ namespace OpenWheelRacer
             // touchscreen top edge 0.6348 with its lower half buried in the
             // cap), so every chase frame still silhouettes as bare bodywork
             // plus two seat backs.
-            AddPartBox(it, "DashMain", dark, new Vector3(0.215f, 0.6175f, 0.045f), new Vector3(0.84f, 0.025f, 0.77f));
+            // Round 4 r4-2: cap back edge moved -0.34 -> -0.26. The r4-1
+            // frame proved the shifter (z -0.22) sat UNDER the cap plane —
+            // the knob broke the surface by 8 mm and read as a hole. With
+            // the lid back, the console top is the last surface before the
+            // seats and the shifter stack stands fully in view.
+            AddPartBox(it, "DashMain", dark, new Vector3(0.215f, 0.6175f, 0.085f), new Vector3(0.84f, 0.025f, 0.69f));
             AddPartBox(it, "DashDriver", dark, new Vector3(-0.385f, 0.6175f, 0.320f), new Vector3(0.48f, 0.025f, 0.22f));
             AddPartBox(it, "WheelTubFill", dark, new Vector3(-0.385f, 0.325f, 0.105f), new Vector3(0.46f, 0.45f, 0.22f));
             AddPartBox(it, "DashFront", dark, new Vector3(0.0025f, 0.3675f, 0.395f), new Vector3(1.25f, 0.535f, 0.07f));
@@ -656,43 +666,49 @@ namespace OpenWheelRacer
             // rule; nothing was tilted, the separate-vertices builder rule
             // is untouched (all new parts go through Face/Round/AddPartBox).
 
-            // Twin gauge pods straddling the driver's eye line (x -0.10),
-            // centred so the sight lines pass through the rim opening or
-            // beside the rim tube: black puck, chrome bezel ring, WHITE
-            // DIAL FACE, black hub + top pip (so the face reads as an
-            // instrument, not a light), fat lit red needle at 10 past 10.
+            // Twin gauge pods. Round 4 r4-1 verdict: the r4-1 pod row
+            // (x -0.255/+0.055) sat at ~11.5 degrees of angular distance
+            // from the wheel centre — dead behind the 8..12.4-degree
+            // rim-tube band, so the review read them as "occluded by the
+            // wheel". Both pods now sit at ~8.6 degrees, i.e. inside the
+            // rim OPENING (< 8 degrees is tube-free; the outer edge just
+            // grazes the tube), still "through the wheel rim" as the brief
+            // demands, Ø190 dials. Faces are emissive WHITE with a fat lit
+            // red needle (24 mm wide, breaking the face 8 mm — visible
+            // edge-on at the 27-degree graze) + black hub + top pip.
             foreach (int s in new[] { -1, 1 })
             {
-                float px = s < 0 ? -0.255f : 0.055f;
+                float px = s < 0 ? -0.225f : 0.015f;
                 string side = s < 0 ? "_L" : "_R";
                 float yaw = s * 33f;
                 Vector3 nd = new Vector3(Mathf.Sin(yaw * Mathf.Deg2Rad), 0f, Mathf.Cos(yaw * Mathf.Deg2Rad));
-                Round("GaugePuck" + side, BlackMat(), new Vector3(px, 0.6330f, 0.320f), 0.105f, 0.008f);
-                Face("GaugeBezel" + side, ChromeMat(), new Vector3(px, 0.6374f, 0.320f), 0.105f);
-                Face("GaugeFace" + side, DialMat(), new Vector3(px, 0.6379f, 0.320f), 0.088f);
-                Face("GaugeHub" + side, BlackMat(), new Vector3(px, 0.6384f, 0.320f), 0.020f);
-                Face("GaugePip" + side, HeadMat(), new Vector3(px, 0.6385f, 0.388f), 0.011f);
+                Round("GaugePuck" + side, BlackMat(), new Vector3(px, 0.6330f, 0.320f), 0.095f, 0.008f);
+                Face("GaugeBezel" + side, LightTrimMat(), new Vector3(px, 0.6374f, 0.320f), 0.095f);
+                Face("GaugeFace" + side, DialMat(), new Vector3(px, 0.6379f, 0.320f), 0.085f);
+                Face("GaugeHub" + side, BlackMat(), new Vector3(px, 0.6384f, 0.320f), 0.030f);
+                Face("GaugePip" + side, UiSlotMat(), new Vector3(px, 0.6385f, 0.391f), 0.012f);
                 AddPartBox(it, "GaugeNeedle" + side, NeedleMat(),
-                    new Vector3(px + nd.x * 0.043f, 0.6393f, 0.320f + nd.z * 0.043f),
-                    new Vector3(0f, yaw, 0f), new Vector3(0.018f, 0.004f, 0.086f));
+                    new Vector3(px + nd.x * 0.040f, 0.6394f, 0.320f + nd.z * 0.040f),
+                    new Vector3(0f, yaw, 0f), new Vector3(0.024f, 0.008f, 0.112f));
             }
             // Blue LCD strip between the pod rows, ahead of the steering
-            // column (column B tops out z 0.387 — the strip starts 0.397).
-            AddPartBox(it, "ClusterScreen", LcdMat(), new Vector3(-0.10f, 0.6330f, 0.412f), new Vector3(0.140f, 0.005f, 0.030f));
+            // column (column tops out z 0.387 — strip starts 0.397; pod
+            // circles clear the strip's x span at that z).
+            AddPartBox(it, "ClusterScreen", LcdMat(), new Vector3(-0.105f, 0.6330f, 0.412f), new Vector3(0.110f, 0.005f, 0.030f));
 
-            // Three centre rounds, spread so each is individually
-            // distinguishable: raised black puck, full chrome face ring,
-            // black well, ONE wide chrome vane. The vane is the readable
-            // part at grazing angle — round 3's thin cross pair was the
-            // "small bright rectangles" the round-4 review called out.
-            float[] vents = { 0.235f, 0.395f, 0.555f };
+            // Three centre rounds: raised black puck, BRIGHT SILVER ring
+            // face (r4-1 lesson: metal chrome goes black in the shaded
+            // cabin — dark rings read as holes), black well, and one wide
+            // silver vane. Spread 14 cm apart so each is individually
+            // distinguishable, and clear of the pod/screen footprints.
+            float[] vents = { 0.195f, 0.335f, 0.475f };
             for (int v = 0; v < vents.Length; v++)
             {
                 string vn = (v + 1).ToString();
                 Round("CentreVentPuck" + vn, BlackMat(), new Vector3(vents[v], 0.6330f, 0.345f), 0.072f, 0.008f);
-                Face("CentreVentRing" + vn, ChromeMat(), new Vector3(vents[v], 0.6374f, 0.345f), 0.072f);
-                Face("CentreVentWell" + vn, BlackMat(), new Vector3(vents[v], 0.6379f, 0.345f), 0.058f);
-                AddPartBox(it, "CentreVentBar" + vn, ChromeMat(), new Vector3(vents[v], 0.6390f, 0.345f), new Vector3(0.128f, 0.0025f, 0.026f));
+                Face("CentreVentRing" + vn, LightTrimMat(), new Vector3(vents[v], 0.6374f, 0.345f), 0.072f);
+                Face("CentreVentWell" + vn, BlackMat(), new Vector3(vents[v], 0.6379f, 0.345f), 0.056f);
+                AddPartBox(it, "CentreVentBar" + vn, LightTrimMat(), new Vector3(vents[v], 0.6390f, 0.345f), new Vector3(0.128f, 0.0025f, 0.026f));
             }
             // Centre touchscreen: black bezel plate + one big lit UI plate
             // (255x145 mm vs 190x104 in r3), with near-black slots raised
@@ -707,20 +723,23 @@ namespace OpenWheelRacer
             AddPartBox(it, "TouchUIslotRowB", UiSlotMat(), new Vector3(0.120f, 0.6380f, 0.115f), new Vector3(0.075f, 0.0016f, 0.022f));
             AddPartBox(it, "TouchUIslotRowC", UiSlotMat(), new Vector3(0.120f, 0.6380f, 0.158f), new Vector3(0.075f, 0.0016f, 0.022f));
 
-            // Shifter that clearly reads as a shifter (round-4 brief): a
-            // chrome GATE PLATE on the console lid gives the black boot and
-            // Ø100 knob a rim silhouette (r3 was black-on-black), a visible
-            // chrome stem raises the knob above the boot, and a big chrome
-            // cap plate tops the knob. Knob top 0.6385, cap 0.6387 — deck
-            // rule intact.
+            // Shifter that clearly reads as a shifter (round-4 brief). Two
+            // r4-1 fixes: (a) the stack moved z -0.22 -> -0.33, BEHIND the
+            // cap's new back edge (-0.26) — it now stands on the console
+            // lid (y 0.6) and silhouettes against the seat instead of
+            // being a disc buried in the cap plane; (b) chrome GATE PLATE
+            // (bright silver, not black-on-black chrome) under a Ø100
+            // black knob with a visible stem and a big cap plate. The deck
+            // rule only applies to parts under the cap — this stack tops
+            // at 0.6387, still under 0.641 all the same.
             // Centre console between the seats, running down to the floor
-            // pan; the shifter stack above sits on its lid.
+            // pan; the shifter stack above stands on its lid (top y 0.6).
             AddPartBox(it, "CentreConsole", dark, new Vector3(-0.02f, 0.35f, -0.435f), new Vector3(0.24f, 0.50f, 0.57f));
-            AddPartBox(it, "ShifterGate", ChromeMat(), new Vector3(-0.05f, 0.6011f, -0.22f), new Vector3(0.155f, 0.002f, 0.125f));
-            Round("ShifterBoot", BlackMat(), new Vector3(-0.05f, 0.6080f, -0.22f), 0.040f, 0.017f);
-            Round("ShifterStem", ChromeMat(), new Vector3(-0.05f, 0.6220f, -0.22f), 0.010f, 0.018f);
-            Round("ShifterKnob", BlackMat(), new Vector3(-0.05f, 0.6305f, -0.22f), 0.050f, 0.016f);
-            Face("ShifterCap", ChromeMat(), new Vector3(-0.05f, 0.6387f, -0.22f), 0.042f);
+            AddPartBox(it, "ShifterGate", LightTrimMat(), new Vector3(-0.05f, 0.6011f, -0.33f), new Vector3(0.155f, 0.002f, 0.125f));
+            Round("ShifterBoot", BlackMat(), new Vector3(-0.05f, 0.6080f, -0.33f), 0.040f, 0.017f);
+            Round("ShifterStem", LightTrimMat(), new Vector3(-0.05f, 0.6220f, -0.33f), 0.010f, 0.018f);
+            Round("ShifterKnob", BlackMat(), new Vector3(-0.05f, 0.6305f, -0.33f), 0.050f, 0.016f);
+            Face("ShifterCap", LightTrimMat(), new Vector3(-0.05f, 0.6387f, -0.33f), 0.042f);
 
             // Door cards: the shell's sloped white sides are the cabin wall,
             // so trim them dark floor-to-belt along the whole open span.
