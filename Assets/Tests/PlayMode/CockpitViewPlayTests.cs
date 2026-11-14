@@ -76,16 +76,8 @@ namespace OpenWheelRacer.Tests.PlayMode
             Assert.That(z, Is.EqualTo(-CockpitView.WheelAngleFor(steer)).Within(2f));
         }
 
-        [Test]
-        public void VirtualGear_IsDerivedFromSpeed()
-        {
-            Assert.AreEqual(0, CockpitView.VirtualGear(0f, false));
-            Assert.AreEqual(-1, CockpitView.VirtualGear(-2f, true));
-            Assert.AreEqual(1, CockpitView.VirtualGear(10f, false));
-            Assert.AreEqual(2, CockpitView.VirtualGear(20f, false));
-            Assert.AreEqual(8, CockpitView.VirtualGear(90f, false));
-            Assert.AreEqual("R", CockpitView.GearLabel(-1));
-            Assert.AreEqual("N", CockpitView.GearLabel(0));
-        }
+        // Round 3 removed the projected gear/speed readout from CockpitView
+        // entirely (VirtualGear/GearLabel/OnGUI are gone); the companion
+        // CockpitDashPlayTests file pins that no readout anchor exists.
     }
 }

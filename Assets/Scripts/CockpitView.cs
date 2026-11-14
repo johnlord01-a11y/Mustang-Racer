@@ -5,12 +5,17 @@ namespace OpenWheelRacer
 {
     /// Seated driver's view (default) of the Mustang GT, LEFT seat (US car).
     /// The rig is a ROUND 3-spoke steering wheel — one joined torus rim,
-    /// silver spokes, dark hub with a compact pony badge, navy gloved hands at
-    /// 9 and 3 — that turns with the car's actual steer angle, a short column
-    /// into the dash, and a speed (km/h) + derived virtual-gear readout
-    /// anchored to the centre touchscreen, drawn at the panel's projected
-    /// screen position (it never rides the wheel, so it does not spin). The
-    /// hood, windshield frame, twin gauge pods, three centre rounds and manual
+    /// silver spokes, dark hub, navy gloved hands at 9 and 3 — that turns with
+    /// the car's actual steer angle, over a short column into the dash front.
+    /// There is NO speed/gear readout in the cockpit at all (round-3 brief:
+    /// the projected "N 0" text read as a plate pasted below the wheel; the
+    /// simplest acceptable outcome is no readout, and the centre touchscreen
+    /// stays a plain lit screen). The eye sits high and BACK in the tub — real
+    /// seating depth behind the wheel (0.65 m) — and pitches down 24 degrees
+    /// at 90 degrees FOV, the round-3 geometry that puts the whole dash set
+    /// (twin gauge pods, three centre vents, pop-up touchscreen, manual
+    /// shifter) inside one frame over the rim, with the road and sky still
+    /// filling the top. The hood, windshield frame, pillars, dash set and
     /// shifter all come from <see cref="MustangMeshBuilder"/>'s body, so one
     /// cabin is shared with the chase cameras. C toggles back to the existing
     /// ChaseCamera (near clip and field of view restore; the chase snaps to
@@ -20,44 +25,40 @@ namespace OpenWheelRacer
     [RequireComponent(typeof(Camera))]
     public sealed class CockpitView : MonoBehaviour
     {
-        /// <summary>Driver eye in the LEFT seat, dead ahead of the twin gauge
-        /// pods and centred over the wheel; z clears the seat back. Seated at
-        /// y 1.02, z -0.34, x -0.30 (round-2 lesson: sit the eye directly
-        /// behind the offset GT wheel, over the driver seat at x -0.35): an eye at
-        /// head height over the tub sees DOWN onto the 0.636 dash cap, the
-        /// seat-back tops frame the shoulders, and the eye sits BACK of the
-        /// wheel so the slimmed hub clears the gauge pods instead of eating
-        /// them. Near-centre seating keeps the driver's own door card and
-        /// the centre stack both in the frame like ref-4.</summary>
-        public static readonly Vector3 EyeLocal = new Vector3(-0.10f, 1.02f, -0.34f);
+        /// <summary>Driver eye in the LEFT seat at real seating depth: 0.65 m
+        /// behind the wheel plane so the dash set (z 0.15..0.43) lies 0.7..1.0 m
+        /// ahead and the console/shifter (z -0.15) still sits 0.40 m ahead of
+        /// the eye instead of under it (round-2 lesson: an eye at z -0.34 put
+        /// the shifter BEHIND the camera and the screen below the frame).
+        /// Seat-back tops (y 0.63) stay below the bottom frame edge, so the
+        /// seat never intrudes.</summary>
+        public static readonly Vector3 EyeLocal = new Vector3(-0.10f, 1.02f, -0.55f);
 
-        /// Slight downward pitch so hood, dash and shifter compose naturally
-        /// in the lower half while the road fills the top (matches ref-4).
-        public const float EyePitchDown = 10f;
+        /// <summary>Head-down GT pose: pitch axis 24 degrees below the horizon
+        /// puts the dash band (21..33 deg below the eye) across the middle of
+        /// the frame and the shifter (49.5 deg) at v -0.89, while the frame top
+        /// still clears the horizon by 4.5 degrees (road + sky in shot).</summary>
+        public const float EyePitchDown = 24f;
 
-        /// Wider seated field of view than the chase camera restores; at 16:9
-        /// the vertical half-angle is ~27 degrees, which frames the gauge pods,
-        /// both A-pillar roots and most of the centre stack.
-        public const float CockpitFieldOfView = 80f;
+        /// <summary>Wide seated field of view; at 90 horizontal the vertical
+        /// half-angle is ~28.5 degrees at 16:9, the window that shows the pods
+        /// beside the rim, the vents and screen between them, and both
+        /// A-pillar roots at the frame edges.</summary>
+        public const float CockpitFieldOfView = 90f;
 
         public const float WheelTurnRatio = 6f;   // wheel degrees per road-wheel degree
         public const float NearClip = 0.05f;
-        public const float GearBandKmh = 40f;     // virtual gear: one gear per 40 km/h band, 1..8
 
         public bool CockpitActive { get; private set; } = true;
         public Transform Rig => _rig;
         public Transform SteeringWheel => _wheel;
-        /// <summary>Anchor at the centre touchscreen's lit UI panel; the speed/gear readout
-        /// is drawn at its projected position, so it never spins with the wheel.</summary>
-        public Transform Dash => _dash;
 
         private VehicleController _car;
         private ChaseCamera _chase;
         private Camera _camera;
-        private Transform _rig, _wheel, _dash;
+        private Transform _rig, _wheel;
         private Renderer[] _ownGlass;
         private float _defaultNear, _defaultFov;
-        private GUIStyle _dashStyle;
 
         public void Bind(VehicleController car, ChaseCamera chase)
         {
@@ -110,30 +111,6 @@ namespace OpenWheelRacer
 
         public static float WheelAngleFor(float roadWheelSteerDeg) => roadWheelSteerDeg * WheelTurnRatio;
 
-        public static int VirtualGear(float forwardSpeedMs, bool reversing)
-        {
-            if (reversing) return -1;
-            float kmh = Mathf.Abs(forwardSpeedMs) * 3.6f;
-            if (kmh < 1f) return 0;
-            return Mathf.Clamp(1 + Mathf.FloorToInt(kmh / GearBandKmh), 1, 8);
-        }
-
-        public static string GearLabel(int gear) => gear < 0 ? "R" : gear == 0 ? "N" : gear.ToString();
-
-        /// <summary>The on-wheel readout: gear, then speed in km/h.</summary>
-        public static string DashText(int kmh, string gear) => $"{gear}  {kmh}";
-
-        /// <summary>The dash plate's centre in GUI coordinates (origin top-left); false when not visible.</summary>
-        public bool TryGetDashGuiPoint(out Vector2 point)
-        {
-            point = default;
-            if (!CockpitActive || _dash == null || _camera == null) return false;
-            Vector3 sp = _camera.WorldToScreenPoint(_dash.position);
-            if (sp.z <= 0f) return false;
-            point = new Vector2(sp.x, Screen.height - sp.y);
-            return true;
-        }
-
         private void Update()
         {
             Keyboard k = Keyboard.current;
@@ -154,29 +131,9 @@ namespace OpenWheelRacer
             }
         }
 
-        private void OnGUI()
-        {
-            if (_car == null || !TryGetDashGuiPoint(out Vector2 p)) return;
-            int size = Mathf.Max(14, Mathf.RoundToInt(Screen.height / 26f));
-            if (_dashStyle == null || _dashStyle.fontSize != size)
-            {
-                _dashStyle = new GUIStyle(GUI.skin.label)
-                {
-                    fontSize = size, alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold
-                };
-                _dashStyle.normal.textColor = new Color(0.06f, 0.06f, 0.07f, 0.95f);  // dark digits on the lit screen
-            }
-
-            int kmh = Mathf.RoundToInt(_car.CurrentSpeedMs * 3.6f);
-            string gear = GearLabel(VirtualGear(_car.ForwardSpeed, _car.IsReversing));
-            GUI.Label(new Rect(p.x - size * 3f, p.y - size * 0.7f, size * 6f, size * 1.4f), DashText(kmh, gear), _dashStyle);
-        }
-
         private void BuildRig(Transform car)
         {
             var black = MakeMaterial(new Color(0.045f, 0.045f, 0.05f));
-            var carbon = MakeMaterial(new Color(0.08f, 0.08f, 0.09f));
-            var gunmetal = MakeMaterial(new Color(0.30f, 0.31f, 0.34f));
             var rimDark = MakeMaterial(new Color(0.15f, 0.15f, 0.17f));
             var silver = MakeMaterial(new Color(0.85f, 0.86f, 0.88f));
             var navy = MakeMaterial(new Color(0.10f, 0.10f, 0.13f));
@@ -185,45 +142,43 @@ namespace OpenWheelRacer
             _rig.SetParent(car, false);
 
             // ROUND steering wheel in front of the left seat, rim leaning back
-            // 20 degrees: 37 cm across, centred at the sternum line below the
-            // new 0.88 eye so the rim tops out at ~0.92 and stays under the
-            // eye line like the reference (round-1's 0.86 centre read high).
+            // 20 degrees: rim torus 0.14 ring / 0.022 tube, centre y 0.68 —
+            // the round-3 drop so the sight lines to the touchscreen and the
+            // pods pass through the rim OPENING (r<0.118) or outside the tube
+            // (r>0.162) instead of through the arc the 0.735 height put across
+            // them. Rim top 0.842 stays a hand's width below the 1.02 eye.
             _wheel = new GameObject("Cockpit_Wheel").transform;
             _wheel.SetParent(_rig, false);
-            _wheel.localPosition = new Vector3(-0.10f, 0.735f, 0.105f);
+            _wheel.localPosition = new Vector3(-0.10f, 0.68f, 0.105f);
             // Joined torus rim, one closed mesh (round 1's fourteen separate
             // cubes gapped into a scalloped ring in every cockpit frame).
             MeshPiece("Wheel_Rim", _wheel, Vector3.zero, Vector3.zero, BuildRimMesh(0.140f, 0.022f, 32, 12), rimDark);
-            // Three silver spokes; small dark button pads outboard on the pair.
-            Piece("Wheel_SpokeL", PrimitiveType.Cube, _wheel, new Vector3(-0.084f, -0.030f, 0f), Vector3.zero, new Vector3(0.125f, 0.030f, 0.024f), silver);
-            Piece("Wheel_SpokeR", PrimitiveType.Cube, _wheel, new Vector3(0.084f, -0.030f, 0f), Vector3.zero, new Vector3(0.125f, 0.030f, 0.024f), silver);
+            // Silver side spokes SHORTENED (0.075 long, out to r 0.0965) so
+            // they stop where the button pads start (pad inner edge 0.0775):
+            // the round-2 spoke length put a 12.5 cm silver bar across the
+            // sight line to the centre touchscreen at this seating depth.
+            // Bottom spoke unchanged; pads bridge spoke-to-rim as before.
+            Piece("Wheel_SpokeL", PrimitiveType.Cube, _wheel, new Vector3(-0.059f, -0.030f, 0f), Vector3.zero, new Vector3(0.075f, 0.030f, 0.024f), silver);
+            Piece("Wheel_SpokeR", PrimitiveType.Cube, _wheel, new Vector3(0.059f, -0.030f, 0f), Vector3.zero, new Vector3(0.075f, 0.030f, 0.024f), silver);
             Piece("Wheel_SpokeB", PrimitiveType.Cube, _wheel, new Vector3(0f, -0.082f, 0f), Vector3.zero, new Vector3(0.030f, 0.128f, 0.024f), silver);
             Piece("Wheel_PadL", PrimitiveType.Cube, _wheel, new Vector3(-0.115f, 0.032f, 0.016f), Vector3.zero, new Vector3(0.075f, 0.040f, 0.012f), black);
             Piece("Wheel_PadR", PrimitiveType.Cube, _wheel, new Vector3(0.115f, 0.032f, 0.016f), Vector3.zero, new Vector3(0.075f, 0.040f, 0.012f), black);
-            // Hub: DARK centre pad inside a slim silver bezel — the reference
-            // wheel's hub is a dark centre, not a chrome dinner plate (round-1
-            // hub + badge occupied most of the wheel opening). The badge is a
-            // compact galloping-pony silhouette of six small silver boxes
-            // (body, neck, head, two legs, tail) at ~2/3 round-1 scale, flat
-            // on the pad — no image assets, no chrome ring around it.
-            Piece("Wheel_HubRing", PrimitiveType.Cylinder, _wheel, new Vector3(0f, 0.003f, -0.006f), new Vector3(90f, 0f, 0f), new Vector3(0.118f, 0.010f, 0.118f), black);
-            // Speed/gear readout anchor: the centre touchscreen's lit UI
-            // panel (body TouchUI at 0.02, 0.6325, 0.15), NOT the wheel, so
-            // the digits stay glued to the screen while the wheel spins.
-            // Invisible transform, no renderer, no collider.
-            var dashGo = new GameObject("Dash_Readout");
-            dashGo.transform.SetParent(_rig, false);
-            dashGo.transform.localPosition = new Vector3(0.02f, 0.6335f, 0.150f);
-            _dash = dashGo.transform;
+            // Hub: DARK centre pad inside the rim, slimmed to 8.8 cm so the
+            // cluster-screen sight line (r 0.047 at the wheel plane) passes
+            // beside it; the round-2 "black hub, no chrome dinner plate"
+            // pattern is unchanged.
+            Piece("Wheel_HubRing", PrimitiveType.Cylinder, _wheel, new Vector3(0f, 0.003f, -0.006f), new Vector3(90f, 0f, 0f), new Vector3(0.088f, 0.010f, 0.088f), black);
             // Navy gloves gripping the rim at 9 and 3.
             Piece("Hand_L", PrimitiveType.Capsule, _wheel, new Vector3(-0.152f, 0.038f, -0.012f), new Vector3(0f, 0f, 72f), new Vector3(0.062f, 0.088f, 0.062f), navy);
             Piece("Hand_R", PrimitiveType.Capsule, _wheel, new Vector3(0.152f, 0.038f, -0.012f), new Vector3(0f, 0f, -72f), new Vector3(0.062f, 0.088f, 0.062f), navy);
-            // Short column from the hub down through the open tub into the
-            // dash front panel (cap front face z 0.43, top 0.630; the wheel
-            // plane z 0.105 clears the driver cut-out rear edge z 0.21).
-            // Column as two crisp angled boxes: hub -> mid -> dash (boxes silhouette better than lit cylinders).
-            Piece("Wheel_ColumnA", PrimitiveType.Cube, _rig, new Vector3(-0.10f, 0.695f, 0.170f), new Vector3(-58.4f, 0f, 0f), new Vector3(0.055f, 0.160f, 0.055f), silver);
-            Piece("Wheel_ColumnB", PrimitiveType.Cube, _rig, new Vector3(-0.10f, 0.615f, 0.325f), new Vector3(-66.0f, 0f, 0f), new Vector3(0.055f, 0.205f, 0.055f), silver);
+            // Short column from the hub into the dash front (front face z
+            // 0.43): hub -> mid -> dash, re-aimed for the 0.68 hub, ending
+            // buried inside DashFront. Boxes silhouette better than lit
+            // cylinders, so two crisp angled boxes.
+            Piece("Wheel_ColumnA", PrimitiveType.Cube, _rig, new Vector3(-0.10f, 0.656f, 0.190f), new Vector3(102.9f, 0f, 0f), new Vector3(0.050f, 0.145f, 0.050f), silver);
+            Piece("Wheel_ColumnB", PrimitiveType.Cube, _rig, new Vector3(-0.10f, 0.627f, 0.3225f), new Vector3(101.3f, 0f, 0f), new Vector3(0.050f, 0.130f, 0.050f), silver);
+            // No readout anchor and no OnGUI: round 3 removed the projected
+            // gear/speed text entirely (the "plate" in the reviews).
         }
 
         private static GameObject MeshPiece(string name, Transform parent, Vector3 pos, Vector3 euler, Mesh mesh, Material m)

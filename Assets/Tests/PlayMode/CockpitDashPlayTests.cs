@@ -8,10 +8,13 @@ using Object = UnityEngine.Object;
 namespace OpenWheelRacer.Tests.PlayMode
 {
     /// <summary>
-    /// The speed/gear readout is anchored to the centre touchscreen (round 2):
-    /// it projects onto the lit UI panel low-right of the driver's view and
-    /// never rides the steering wheel, so it cannot spin away (round-1 review:
-    /// "floating text stuck in mid-frame").
+    /// Round 3 removed the projected speed/gear readout from the cockpit
+    /// entirely — the simplest acceptable outcome for the brief is NO readout
+    /// (the projected "N 0" text read as a plate pasted below the wheel).
+    /// These tests pin that removal, and check the centre screen it replaced:
+    /// a plain tilted touchscreen panel in the body's Interior, always under
+    /// the cabin silhouette line and facing the driver, with no text of any
+    /// kind anchored anywhere in the rig.
     /// </summary>
     public sealed class CockpitDashPlayTests
     {
@@ -25,8 +28,7 @@ namespace OpenWheelRacer.Tests.PlayMode
             if (_plane != null) Object.Destroy(_plane);
         }
 
-        [UnityTest]
-        public IEnumerator Dash_ReadoutIsAnchoredToTheCentreScreen()
+        private CockpitView Build()
         {
             _plane = GameObject.CreatePrimitive(PrimitiveType.Plane);
             _plane.transform.localScale = new Vector3(30f, 1f, 30f);
@@ -36,40 +38,73 @@ namespace OpenWheelRacer.Tests.PlayMode
             _car.transform.position = new Vector3(0f, 0.6f, 0f);
             car.SetTestControls(0f, 0f, 0f);
             _cam = new GameObject("TestCam");
-            Camera cam = _cam.AddComponent<Camera>();
+            _cam.AddComponent<Camera>();
             ChaseCamera chase = _cam.AddComponent<ChaseCamera>();
             chase.target = _car.transform;
             CockpitView view = _cam.AddComponent<CockpitView>();
             view.Bind(car, chase);
-            yield return null;
-            yield return null;
-
-            Assert.IsNotNull(view.Dash, "no dash readout anchor");
-            Assert.AreNotSame(view.SteeringWheel, view.Dash.parent,
-                "the readout must NOT ride the wheel (it would spin with the steer)");
-            Assert.IsNull(view.Dash.GetComponent<Collider>(), "anchor must not collide");
-            Assert.IsNull(view.Dash.GetComponent<Renderer>(), "anchor is invisible; the body's TouchUI panel is the screen");
-            Assert.Less(view.Dash.localPosition.y, 0.641f,
-                "readout anchor must stay under the cabin silhouette (deck) line");
-
-            Vector3 sp = cam.WorldToScreenPoint(view.Dash.position);
-            Assert.Greater(sp.z, 0f, "readout is behind the camera");
-            float xf = sp.x / cam.pixelWidth, yf = sp.y / cam.pixelHeight;
-            Assert.Greater(xf, 0.55f, "readout is not right-of-centre over the centre stack");
-            Assert.Less(xf, 0.80f, "readout has drifted off the right of the screen");
-            Assert.Greater(yf, 0.08f, "readout is off the bottom edge");
-            Assert.Less(yf, 0.35f, "readout is not in the lower part of the view (screen y from bottom)");
-            Assert.IsTrue(view.TryGetDashGuiPoint(out _), "dash readout has no screen anchor");
-
-            view.SetCockpit(false);
-            Assert.IsFalse(view.TryGetDashGuiPoint(out _), "dash readout must hide in chase view");
+            return view;
         }
 
-        [Test]
-        public void DashText_ShowsGearAndRealSpeed()
+        [UnityTest]
+        public IEnumerator Cockpit_HasNoReadoutAnchorAnywhere()
         {
-            Assert.AreEqual("N  0", CockpitView.DashText(0, "N"));
-            Assert.AreEqual("3  97", CockpitView.DashText(97, "3"));
+            CockpitView view = Build();
+            yield return null;
+            yield return null;
+
+            Assert.IsNotNull(view.Rig, "cockpit rig missing");
+            Transform[] all = _car.GetComponentsInChildren<Transform>(true);
+            foreach (Transform t in all)
+                Assert.IsFalse(t.name.Contains("Readout"),
+                    $"round 3 bans the dash readout; found anchor '{t.name}'");
+        }
+
+        [UnityTest]
+        public IEnumerator CentreScreen_IsTiltedUnderTheSilhouetteLine()
+        {
+            Build();
+            yield return null;
+
+            Transform screen = Find(_car.transform, "TouchScreen");
+            Transform ui = Find(_car.transform, "TouchUI");
+            Assert.IsNotNull(screen, "body must keep a centre touchscreen");
+            Assert.IsNotNull(ui, "touchscreen must keep its lit UI panel");
+
+            // Popped up: the panel leans back toward the driver instead of
+            // lying flat on the dash cap (flat it read as a pasted plate).
+            Assert.Greater(Mathf.Abs(Mathf.DeltaAngle(0f, screen.localEulerAngles.x)), 15f,
+                "touchscreen must stand tilted in the centre stack");
+
+            // Never pokes above the cabin deck the chase cameras silhouette.
+            float top = 0f;
+            foreach (Renderer r in ui.GetComponentsInChildren<Renderer>(true))
+                foreach (Vector3 c in Corners(r.bounds))
+                    top = Mathf.Max(top, c.y);
+            Assert.Less(top, 0.641f, "screen tops must stay under the deck line");
+            Debug.Log($"[Cockpit] TouchUI top y {top:F4}");
+        }
+
+        private static Transform Find(Transform root, string name)
+        {
+            foreach (Transform t in root.GetComponentsInChildren<Transform>(true))
+                if (t.name == name) return t;
+            return null;
+        }
+
+        private static Vector3[] Corners(Bounds b)
+        {
+            return new[]
+            {
+                new Vector3(b.min.x, b.min.y, b.min.z),
+                new Vector3(b.max.x, b.min.y, b.min.z),
+                new Vector3(b.min.x, b.max.y, b.min.z),
+                new Vector3(b.max.x, b.max.y, b.min.z),
+                new Vector3(b.min.x, b.min.y, b.max.z),
+                new Vector3(b.max.x, b.min.y, b.max.z),
+                new Vector3(b.min.x, b.max.y, b.max.z),
+                b.max,
+            };
         }
     }
 }

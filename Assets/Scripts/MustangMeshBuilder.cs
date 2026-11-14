@@ -501,9 +501,12 @@ namespace OpenWheelRacer
             Transform trim = group(root, TrimRootName);
             Material dark = DarkTrimMat();
 
-            // A-pillars and header of the frame behind the folded-down top
-            AddPartBox(trim, "Pillar_L", dark, new Vector3(-0.665f, 0.95f, 0.245f), new Vector3(0.05f, 0.72f, 0.05f), new Vector3(17f, 0f, 0f));
-            AddPartBox(trim, "Pillar_R", dark, new Vector3(0.665f, 0.95f, 0.245f), new Vector3(0.05f, 0.72f, 0.05f), new Vector3(17f, 0f, 0f));
+            // A-pillars and header of the frame behind the folded-down top.
+            // Round-3 slim: 32 mm box sections — round 2's 50 mm slabs read
+            // as "oversized plain-black" boards from the driver's eye at the
+            // windshield corners.
+            AddPartBox(trim, "Pillar_L", dark, new Vector3(-0.665f, 0.95f, 0.245f), new Vector3(0.032f, 0.70f, 0.038f), new Vector3(17f, 0f, 0f));
+            AddPartBox(trim, "Pillar_R", dark, new Vector3(0.665f, 0.95f, 0.245f), new Vector3(0.032f, 0.70f, 0.038f), new Vector3(17f, 0f, 0f));
             AddPartBox(trim, "Header", dark, new Vector3(0f, 1.295f, 0.062f), new Vector3(1.30f, 0.055f, 0.06f));
 
             // mirrors on the beltline
@@ -591,18 +594,20 @@ namespace OpenWheelRacer
                 PartFromBuilder(it, n, b, m);
             }
 
-            // INTERIOR SCALE LAW (round 2, 2026-11-13, v2): the shell keeps
+            // INTERIOR SCALE LAW (round 2, updated round 3): the shell keeps
             // its top skin everywhere except the cabin span (BuildBodyShell
             // "openTub"), so the tub is open like a real open-top GT and the
             // driver sees HIS OWN cabin instead of the white plate that
             // z-fought the v1 flush design into invisibility (cockpit-3
             // review). Law: the tub is closed by four dark walls (DashFront,
             // BackPanel, door cards, FloorPan) plus a full-width dash cap
-            // whose top y 0.630 the driver looks down onto from eye 0.88;
-            // gauges, vents and screens lie ON the cap 0.6-4 mm proud, never
-            // floating. Nothing interior tops the 0.635 deck lip (cap 0.630,
-            // seat backs 0.6325, shifter cap 0.6302), so every chase frame
-            // still silhouettes as bare bodywork plus two seat backs.
+            // whose top y 0.630 the driver looks down onto from the round-3
+            // eye at 1.02; gauges, vents and screens lie ON the cap 0.6-4 mm
+            // proud, never floating. Nothing interior tops the 0.635 deck
+            // lip (cap 0.630, seat backs 0.6325, shifter knob top 0.634,
+            // touchscreen top edge 0.6348 with its lower half buried in the
+            // cap), so every chase frame still silhouettes as bare bodywork
+            // plus two seat backs.
             AddPartBox(it, "DashMain", dark, new Vector3(0.215f, 0.6175f, 0.045f), new Vector3(0.84f, 0.025f, 0.77f));
             AddPartBox(it, "DashDriver", dark, new Vector3(-0.385f, 0.6175f, 0.320f), new Vector3(0.48f, 0.025f, 0.22f));
             AddPartBox(it, "WheelTubFill", dark, new Vector3(-0.385f, 0.325f, 0.105f), new Vector3(0.46f, 0.45f, 0.22f));
@@ -612,36 +617,49 @@ namespace OpenWheelRacer
 
             // Twin flat gauge pods on the driver's dash shelf (chrome bezel,
             // black face, red needle) and the lit cluster screen between
-            // them -- the 2015-17 GT pattern laid flat on the cap.
+            // them -- the 2015-17 GT pattern laid flat on the cap. Round-3
+            // spread: pods moved to +/- 0.22 of the driver's eye (x -0.10) so
+            // the sight lines from the new eye pass OUTSIDE the wheel rim
+            // tube; at the old -0.22/0.02 pair they ran through the rim arc
+            // and the hub. Cluster screen kept at x -0.13, through the rim
+            // opening beside the slimmed hub.
             foreach (int s in new[] { -1, 1 })
             {
-                float px = s < 0 ? -0.22f : 0.02f;
+                float px = s < 0 ? -0.32f : 0.12f;
                 string side = s < 0 ? "_L" : "_R";
                 Face("GaugeBezel" + side, ChromeMat(), new Vector3(px, 0.6306f, 0.30f), 0.055f);
                 Face("GaugeFace" + side, HeadMat(), new Vector3(px, 0.6314f, 0.30f), 0.046f);
                 AddPartBox(it, "GaugeNeedle" + side, RedMat(), new Vector3(px - 0.011f, 0.6338f, 0.311f), new Vector3(0.010f, 0.005f, 0.050f), new Vector3(0f, s * 35f, 0f));
             }
-            AddPartBox(it, "ClusterScreen", BlackMat(), new Vector3(-0.10f, 0.6323f, 0.30f), new Vector3(0.10f, 0.0035f, 0.034f));
+            AddPartBox(it, "ClusterScreen", BlackMat(), new Vector3(-0.13f, 0.6323f, 0.30f), new Vector3(0.10f, 0.0035f, 0.034f));
 
-            // Three flat centre vents, then the centre touchscreen flat on
-            // the cap with its lit UI panel -- the TouchUI centre
-            // (0.02, 0.6325, 0.15) is where the dash readout is anchored in
-            // CockpitView, so it must stay there.
-            float[] vents = { 0.14f, 0.27f, 0.40f };
+            // Three flat centre vents, then the centre touchscreen POPPED UP
+            // out of the dash cap at 30 degrees, S550-nav style: lying flat
+            // it read as a pale plate pasted on the dash (round-3 review),
+            // tilted and half-buried it reads as a screen standing in the
+            // centre stack and faces the driver's eye directly. Top edge tops
+            // at 0.6348, inside the 0.635 interior deck rule; the bottom edge
+            // (0.577) is buried in the cap, so it never floats.
+            float[] vents = { -0.04f, 0.09f, 0.22f };
             for (int v = 0; v < vents.Length; v++)
             {
                 Face("CentreVent" + (v + 1), BlackMat(), new Vector3(vents[v], 0.6306f, 0.36f), 0.042f);
                 AddPartBox(it, "VentBarA" + (v + 1), ChromeMat(), new Vector3(vents[v], 0.6318f, 0.36f), new Vector3(0.004f, 0.002f, 0.070f));
                 AddPartBox(it, "VentBarB" + (v + 1), ChromeMat(), new Vector3(vents[v], 0.6318f, 0.36f), new Vector3(0.070f, 0.002f, 0.004f));
             }
-            AddPartBox(it, "TouchScreen", BlackMat(), new Vector3(0.02f, 0.6310f, 0.150f), new Vector3(0.200f, 0.006f, 0.115f));
-            AddPartBox(it, "TouchUI", HeadMat(), new Vector3(0.02f, 0.6325f, 0.150f), new Vector3(0.168f, 0.004f, 0.086f));
+            AddPartBox(it, "TouchScreen", BlackMat(), new Vector3(0.02f, 0.606f, 0.175f), new Vector3(0.200f, 0.012f, 0.115f), new Vector3(-30f, 0f, 0f));
+            AddPartBox(it, "TouchUI", HeadMat(), new Vector3(0.02f, 0.6095f, 0.173f), new Vector3(0.168f, 0.008f, 0.086f), new Vector3(-30f, 0f, 0f));
 
             // Centre console + shifter between the seats, running down to
-            // the floor pan; the knob cap tops at 0.6302, under the deck lip.
-            AddPartBox(it, "CentreConsole", dark, new Vector3(-0.02f, 0.35f, -0.51f), new Vector3(0.24f, 0.50f, 0.44f));
-            Round("ShifterKnob", BlackMat(), new Vector3(-0.045f, 0.6205f, -0.40f), 0.032f, 0.019f);
-            Face("ShifterCap", ChromeMat(), new Vector3(-0.045f, 0.6302f, -0.40f), 0.020f);
+            // the floor pan. Round-3 pull-forward: the console and shifter
+            // moved ~0.18 m toward the dash so the knob (top 0.6348, still
+            // under the deck lip) sits 0.33 m ahead of the driver's eye and
+            // lands at the bottom of the cockpit frame instead of under the
+            // seat; a chrome stub carries the knob above the console lid.
+            AddPartBox(it, "CentreConsole", dark, new Vector3(-0.02f, 0.35f, -0.435f), new Vector3(0.24f, 0.50f, 0.57f));
+            AddPartBox(it, "ShifterLever", ChromeMat(), new Vector3(-0.045f, 0.6015f, -0.22f), new Vector3(0.016f, 0.036f, 0.016f));
+            Round("ShifterKnob", BlackMat(), new Vector3(-0.045f, 0.6245f, -0.22f), 0.032f, 0.019f);
+            Face("ShifterCap", ChromeMat(), new Vector3(-0.045f, 0.6348f, -0.22f), 0.020f);
 
             // Door cards: the shell's sloped white sides are the cabin wall,
             // so trim them dark floor-to-belt along the whole open span.
