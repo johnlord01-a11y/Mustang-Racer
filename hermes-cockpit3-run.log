@@ -1,0 +1,15 @@
+**Round 3 complete.** All 4 capture sets used, committed after every pass, report updated, ending per the brief's STOP rule.
+
+**What shipped** (commits `6431740` → `959c264`, all on the workbench):
+
+- **Fault 1 fixed:** the "N 0" plaque is gone — readout code deleted entirely, tests assert its absence.
+- **Fault 2 fixed:** camera at eye 1.06 / pitch 26° / FOV 90° puts dash, pods, vents, screen and shifter in frame; wheel dropped so you look through the rim opening; pillars slimmed to 32 mm posts.
+- **r3-2→r3-4 fixes:** tilted screen (geometrically impossible under the 0.641 deck rule) became a flush well with a lit plate; instruments scaled up; final move was **self-lit instrument materials** — the sky rig leaves the cabin in shade, so black dials on grey cap measured a 0.94 luminance ratio. Lit UI panel, blue LCD cluster and lit needles fixed it.
+
+**Self-verdict:** all brief criteria PASS except a caveat — the three vent rounds read as dark recesses with bright chrome crosses at the unavoidable 60° graze angle. Stated honestly in the report.
+
+**Caveats for Muse/you:**
+- Unity PlayMode tests were **not run** (no Editor reachable from my account) — Roslyn syntax gate clean, and all four real Unity builds succeeded errors=0. Editor test run recommended before merging.
+- Final frames: `captures/r3-4/frame_01_cockpit.png` in the workbench.
+
+Report: `/home/agent-exchange/projects/OpenWheelRacer/COCKPIT-REPORT.md`

@@ -66,7 +66,7 @@ namespace OpenWheelRacer
 
         static Material _glass, _black, _chrome, _red, _amber, _interior,
                         _darkTrim, _tire, _rim, _stripe, _head,
-                        _litPanel, _lcd, _needle;
+                        _litPanel, _lcd, _needle, _dial, _uiSlot;
 
         static Material Surface(string name, Color c, float metallic, float gloss, Color? emis = null)
         {
@@ -159,11 +159,18 @@ namespace OpenWheelRacer
         static Material StripeMat() { return Cached(ref _stripe, "OwrStripe", new Color(0.85f, 0.86f, 0.88f), 0.2f, 0.8f); }
         static Material HeadMat() { return Cached(ref _head, "OwrHeadLens", new Color(0.88f, 0.90f, 0.94f), 0.4f, 0.9f); }
         // Self-lit interior set (round 3): the daytime sky rig leaves the
-        // cabin in shade, so powered instruments must carry their own light
-        // to separate from the dash cap at a 60-degree graze.
-        static Material LitPanelMat() { return Cached(ref _litPanel, "OwrLitPanel", new Color(0.92f, 0.94f, 0.97f), 0f, 0.35f, new Color(0.60f, 0.66f, 0.78f)); }
-        static Material LcdMat() { return Cached(ref _lcd, "OwrLcd", new Color(0.02f, 0.02f, 0.03f), 0f, 0.5f, new Color(0.22f, 0.30f, 0.44f)); }
-        static Material NeedleMat() { return Cached(ref _needle, "OwrNeedle", new Color(0.6f, 0.04f, 0.05f), 0.1f, 0.6f, new Color(0.30f, 0.02f, 0.03f)); }
+        // cabin in shade, so powered instruments carry their own light.
+        // Round 4: r3-4 measured black dials on the grey cap at a 0.94
+        // luminance ratio — a line nobody could see. Every lit face is now a
+        // BRIGHT AREA with its own emissive term, not dark-on-grey:
+        static Material LitPanelMat() { return Cached(ref _litPanel, "OwrLitPanel", new Color(0.92f, 0.94f, 0.97f), 0f, 0.35f, new Color(0.66f, 0.72f, 0.86f)); }
+        static Material LcdMat() { return Cached(ref _lcd, "OwrLcd", new Color(0.02f, 0.02f, 0.03f), 0f, 0.5f, new Color(0.32f, 0.52f, 0.82f)); }
+        static Material NeedleMat() { return Cached(ref _needle, "OwrNeedle", new Color(0.6f, 0.04f, 0.05f), 0.1f, 0.6f, new Color(0.38f, 0.02f, 0.03f)); }
+        // Classic white GT dial face: pale albedo + emissive so the dial is
+        // the brightest surface in the cabin even under a shaded hood.
+        static Material DialMat() { return Cached(ref _dial, "OwrDialFace", new Color(0.88f, 0.87f, 0.83f), 0f, 0.45f, new Color(0.52f, 0.50f, 0.43f)); }
+        // Near-black matte for the UI slots drawn on the lit screen plate.
+        static Material UiSlotMat() { return Cached(ref _uiSlot, "OwrUiSlot", new Color(0.02f, 0.02f, 0.03f), 0f, 0.3f); }
 
         // ==================================================================
         // Public build entry points
@@ -353,7 +360,13 @@ namespace OpenWheelRacer
 
         // Crown line of the hood, nose -> cowl. Shared by the hood and its stripes.
         static readonly float[] CrownZ = { 1.790f, 1.450f, 1.050f, 0.600f, 0.150f, -0.044f };
-        static readonly float[] CrownY = { 0.398f, 0.452f, 0.520f, 0.575f, 0.618f, 0.612f };
+        // Round-4 brief: the hood reads as a broad flat lid — it stays
+        // broad, but the FRONT edge (nose end) drops 8-18 mm across the
+        // three front sections so the panel carries a visible downhill
+        // slope toward the nose while staying flat enough to read. Cowl end
+        // and stripes ride the same array (no constant sloped hood plane
+        // anywhere in the code); no test pins the crown heights.
+        private static readonly float[] CrownY = { 0.380f, 0.438f, 0.512f, 0.575f, 0.618f, 0.612f };
         // Deck line, cabin -> tail. Shared by the stripes.
         static readonly float[] DeckZ = { -0.55f, -1.00f, -1.50f, -1.89f };
         static readonly float[] DeckY = { 0.641f, 0.646f, 0.656f, 0.641f };
@@ -631,58 +644,83 @@ namespace OpenWheelRacer
             AddPartBox(it, "BackPanel", dark, new Vector3(0.0025f, 0.367f, -0.87f), new Vector3(1.25f, 0.534f, 0.06f));
             AddPartBox(it, "FloorPan", dark, new Vector3(-0.01f, 0.095f, -0.24f), new Vector3(1.30f, 0.01f, 1.72f));
 
-            // Twin flat gauge pods on the driver's dash shelf (chrome bezel,
-            // black face, red needle) and the lit cluster screen between
-            // them -- the 2015-17 GT pattern laid flat on the cap. Round-3
-            // spread: pods moved to +/- 0.22 of the driver's eye (x -0.10) so
-            // the sight lines from the new eye pass OUTSIDE the wheel rim
-            // tube; at the old -0.22/0.02 pair they ran through the rim arc
-            // and the hub. Cluster screen kept at x -0.13, through the rim
-            // opening beside the slimmed hub.
+            // ROUND 4 — THE DASH MUST READ (Muse round-4 brief). Round 3's
+            // flush black discs + 5 mm chrome crosses measured a 0.94
+            // luminance ratio and rendered as "a few small bright
+            // rectangles" at the 27-degree dash graze. Every element is now
+            // a BIG BRIGHT AREA: 210 mm pods with emissive white dial faces
+            // + fat lit needles, chrome-ringed vent rounds Ø144 with one
+            // wide vane each, a 255x145 mm lit screen plate with dark UI
+            // slots drawn on it, and a chrome gate plate standing behind a
+            // Ø100 black knob. All tops stay <= 0.6403 under the 0.641 deck
+            // rule; nothing was tilted, the separate-vertices builder rule
+            // is untouched (all new parts go through Face/Round/AddPartBox).
+
+            // Twin gauge pods straddling the driver's eye line (x -0.10),
+            // centred so the sight lines pass through the rim opening or
+            // beside the rim tube: black puck, chrome bezel ring, WHITE
+            // DIAL FACE, black hub + top pip (so the face reads as an
+            // instrument, not a light), fat lit red needle at 10 past 10.
             foreach (int s in new[] { -1, 1 })
             {
-                float px = s < 0 ? -0.32f : 0.12f;
+                float px = s < 0 ? -0.255f : 0.055f;
                 string side = s < 0 ? "_L" : "_R";
-                Face("GaugeBezel" + side, ChromeMat(), new Vector3(px, 0.6320f, 0.30f), 0.082f);
-                Face("GaugeFace" + side, BlackMat(), new Vector3(px, 0.6328f, 0.30f), 0.070f);
-                Face("GaugePip" + side, HeadMat(), new Vector3(px, 0.6335f, 0.30f), 0.014f);
-                AddPartBox(it, "GaugeNeedle" + side, NeedleMat(), new Vector3(px - 0.016f, 0.6339f, 0.315f), new Vector3(0.014f, 0.006f, 0.095f), new Vector3(0f, s * 35f, 0f));
+                float yaw = s * 33f;
+                Vector3 nd = new Vector3(Mathf.Sin(yaw * Mathf.Deg2Rad), 0f, Mathf.Cos(yaw * Mathf.Deg2Rad));
+                Round("GaugePuck" + side, BlackMat(), new Vector3(px, 0.6330f, 0.320f), 0.105f, 0.008f);
+                Face("GaugeBezel" + side, ChromeMat(), new Vector3(px, 0.6374f, 0.320f), 0.105f);
+                Face("GaugeFace" + side, DialMat(), new Vector3(px, 0.6379f, 0.320f), 0.088f);
+                Face("GaugeHub" + side, BlackMat(), new Vector3(px, 0.6384f, 0.320f), 0.020f);
+                Face("GaugePip" + side, HeadMat(), new Vector3(px, 0.6385f, 0.388f), 0.011f);
+                AddPartBox(it, "GaugeNeedle" + side, NeedleMat(),
+                    new Vector3(px + nd.x * 0.043f, 0.6393f, 0.320f + nd.z * 0.043f),
+                    new Vector3(0f, yaw, 0f), new Vector3(0.018f, 0.004f, 0.086f));
             }
-            AddPartBox(it, "ClusterScreen", LcdMat(), new Vector3(-0.13f, 0.6328f, 0.30f), new Vector3(0.12f, 0.005f, 0.042f));
+            // Blue LCD strip between the pod rows, ahead of the steering
+            // column (column B tops out z 0.387 — the strip starts 0.397).
+            AddPartBox(it, "ClusterScreen", LcdMat(), new Vector3(-0.10f, 0.6330f, 0.412f), new Vector3(0.140f, 0.005f, 0.030f));
 
-            // Three flat centre vents, then the centre touchscreen laid as a
-            // recessed well in the dash cap, S550-nav-screen style: lying
-            // flush it read as a pale plate pasted on the dash (round-3
-            // review), and tilting it is impossible under the deck rule, so
-            // centre stack. Round-3b: the r3-1 capture proved a tilted panel
-            // is geometrically doomed under the 0.635 deck rule (the cap's
-            // front edge hides anything lower than ~0.73 at this eye), so
-            // the screen is FLUSH as a recessed black well with a pale lit
-            // UI plate inside it — the same black-on-grey disc language as
-            // the pods and vents, legible from the 60-degree dash grazing
-            // angle, and flat enough to never touch the silhouette.
-            float[] vents = { -0.04f, 0.09f, 0.22f };
+            // Three centre rounds, spread so each is individually
+            // distinguishable: raised black puck, full chrome face ring,
+            // black well, ONE wide chrome vane. The vane is the readable
+            // part at grazing angle — round 3's thin cross pair was the
+            // "small bright rectangles" the round-4 review called out.
+            float[] vents = { 0.235f, 0.395f, 0.555f };
             for (int v = 0; v < vents.Length; v++)
             {
-                Face("CentreVent" + (v + 1), BlackMat(), new Vector3(vents[v], 0.6320f, 0.36f), 0.060f);
-                AddPartBox(it, "VentBarA" + (v + 1), ChromeMat(), new Vector3(vents[v], 0.6330f, 0.36f), new Vector3(0.005f, 0.002f, 0.100f));
-                AddPartBox(it, "VentBarB" + (v + 1), ChromeMat(), new Vector3(vents[v], 0.6330f, 0.36f), new Vector3(0.100f, 0.002f, 0.005f));
+                string vn = (v + 1).ToString();
+                Round("CentreVentPuck" + vn, BlackMat(), new Vector3(vents[v], 0.6330f, 0.345f), 0.072f, 0.008f);
+                Face("CentreVentRing" + vn, ChromeMat(), new Vector3(vents[v], 0.6374f, 0.345f), 0.072f);
+                Face("CentreVentWell" + vn, BlackMat(), new Vector3(vents[v], 0.6379f, 0.345f), 0.058f);
+                AddPartBox(it, "CentreVentBar" + vn, ChromeMat(), new Vector3(vents[v], 0.6390f, 0.345f), new Vector3(0.128f, 0.0025f, 0.026f));
             }
-            // Black bezel plate proud of the cap, lit UI plate floating ~3 mm
-            // above it; UI top 0.6378, still under the 0.641 deck rule.
-            AddPartBox(it, "TouchScreen", BlackMat(), new Vector3(0.02f, 0.6322f, 0.150f), new Vector3(0.240f, 0.005f, 0.140f));
-            AddPartBox(it, "TouchUI", LitPanelMat(), new Vector3(0.02f, 0.6358f, 0.150f), new Vector3(0.190f, 0.004f, 0.104f));
+            // Centre touchscreen: black bezel plate + one big lit UI plate
+            // (255x145 mm vs 190x104 in r3), with near-black slots raised
+            // 1 mm through the plate — a wide "map" panel and three "list"
+            // rows — so the screen shows VISIBLE UI, not a blank glow.
+            // Bezel stays level (deck rule) and the UI plate floats proud,
+            // the exact pattern CockpitDashPlayTests pins.
+            AddPartBox(it, "TouchScreen", BlackMat(), new Vector3(0.205f, 0.6322f, 0.115f), new Vector3(0.300f, 0.005f, 0.190f));
+            AddPartBox(it, "TouchUI", LitPanelMat(), new Vector3(0.205f, 0.6358f, 0.115f), new Vector3(0.255f, 0.004f, 0.145f));
+            AddPartBox(it, "TouchUIslotMap", UiSlotMat(), new Vector3(0.255f, 0.6380f, 0.115f), new Vector3(0.115f, 0.0016f, 0.100f));
+            AddPartBox(it, "TouchUIslotRowA", UiSlotMat(), new Vector3(0.120f, 0.6380f, 0.072f), new Vector3(0.075f, 0.0016f, 0.022f));
+            AddPartBox(it, "TouchUIslotRowB", UiSlotMat(), new Vector3(0.120f, 0.6380f, 0.115f), new Vector3(0.075f, 0.0016f, 0.022f));
+            AddPartBox(it, "TouchUIslotRowC", UiSlotMat(), new Vector3(0.120f, 0.6380f, 0.158f), new Vector3(0.075f, 0.0016f, 0.022f));
 
-            // Centre console + shifter between the seats, running down to
-            // the floor pan. Round-3b: the knob is a real stack now — boot
-            // cylinder off the lid, fat black knob body, chrome cap dot —
-            // so from the shallow driver angle it reads as a knob rising
-            // out of the console instead of a flush porthole disc. Top
-            // (0.6405) still respects the 0.641 interior deck rule.
+            // Shifter that clearly reads as a shifter (round-4 brief): a
+            // chrome GATE PLATE on the console lid gives the black boot and
+            // Ø100 knob a rim silhouette (r3 was black-on-black), a visible
+            // chrome stem raises the knob above the boot, and a big chrome
+            // cap plate tops the knob. Knob top 0.6385, cap 0.6387 — deck
+            // rule intact.
+            // Centre console between the seats, running down to the floor
+            // pan; the shifter stack above sits on its lid.
             AddPartBox(it, "CentreConsole", dark, new Vector3(-0.02f, 0.35f, -0.435f), new Vector3(0.24f, 0.50f, 0.57f));
-            Round("ShifterBoot", BlackMat(), new Vector3(-0.045f, 0.6085f, -0.22f), 0.038f, 0.019f);
-            Round("ShifterKnob", BlackMat(), new Vector3(-0.045f, 0.6265f, -0.22f), 0.042f, 0.028f);
-            Face("ShifterCap", ChromeMat(), new Vector3(-0.045f, 0.6408f, -0.22f), 0.020f);
+            AddPartBox(it, "ShifterGate", ChromeMat(), new Vector3(-0.05f, 0.6011f, -0.22f), new Vector3(0.155f, 0.002f, 0.125f));
+            Round("ShifterBoot", BlackMat(), new Vector3(-0.05f, 0.6080f, -0.22f), 0.040f, 0.017f);
+            Round("ShifterStem", ChromeMat(), new Vector3(-0.05f, 0.6220f, -0.22f), 0.010f, 0.018f);
+            Round("ShifterKnob", BlackMat(), new Vector3(-0.05f, 0.6305f, -0.22f), 0.050f, 0.016f);
+            Face("ShifterCap", ChromeMat(), new Vector3(-0.05f, 0.6387f, -0.22f), 0.042f);
 
             // Door cards: the shell's sloped white sides are the cabin wall,
             // so trim them dark floor-to-belt along the whole open span.

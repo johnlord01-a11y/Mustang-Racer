@@ -31,14 +31,23 @@ namespace OpenWheelRacer
         /// the eye instead of under it (round-2 lesson: an eye at z -0.34 put
         /// the shifter BEHIND the camera and the screen below the frame).
         /// Seat-back tops (y 0.63) stay below the bottom frame edge, so the
-        /// seat never intrudes.</summary>
-        public static readonly Vector3 EyeLocal = new Vector3(-0.10f, 1.06f, -0.55f);
+        /// seat never intrudes. Round 4 (Muse brief: "pull the camera
+        /// slightly back/up if needed"): +3 cm up, +2 cm back — the extra
+        /// distance shrinks the rim-tube occlusion of the enlarged pod row
+        /// (the sight line to each pod centre crosses the wheel plane 68 mm
+        /// above the hub, 136 mm off-centre, grazing the outer edge of the
+        /// 111..169 mm rim-tube band, so the 210 mm dials stay mostly seen
+        /// through/beside the rim opening).</summary>
+        public static readonly Vector3 EyeLocal = new Vector3(-0.10f, 1.09f, -0.57f);
 
-        /// <summary>Head-down GT pose: pitch axis 26 degrees below the horizon
-        /// puts the dash band (21..33 deg below the eye) across the middle of
-        /// the frame and the shifter (49.5 deg) at v -0.89, while the frame top
-        /// still clears the horizon by 4.5 degrees (road + sky in shot).</summary>
-        public const float EyePitchDown = 26f;
+        /// <summary>Head-down GT pose (90-degree VERTICAL field, half-angle
+        /// 45 degrees): pitch 27.5 puts the frame centre 27.5 degrees below
+        /// the horizon (horizon at v +0.61, road + sky in shot), the dash
+        /// cap front edge (24.3 deg depression) 3 degrees above centre, the
+        /// pod row (27.0 deg) on the centre line, the lit screen (30..38
+        /// deg) in the lower-middle band, the shifter (52 deg) at v -0.55,
+        /// and the bonnet band (16..24 deg) above the cap edge.</summary>
+        public const float EyePitchDown = 27.5f;
 
         /// <summary>Wide seated field of view; at 90 horizontal the vertical
         /// half-angle is ~28.5 degrees at 16:9, the window that shows the pods
