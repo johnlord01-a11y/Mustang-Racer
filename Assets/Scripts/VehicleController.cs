@@ -100,6 +100,26 @@ namespace OpenWheelRacer
         public bool HumanControlled = true;
 
         /// <summary>
+        /// Index into <see cref="CarBodyCatalog"/> of the imported body this car wears, or -1
+        /// for the procedural <see cref="MustangMeshBuilder"/> body. It has to be set before
+        /// activation for the same reason <see cref="HumanControlled"/> does: the body is built
+        /// inside <see cref="Initialize"/>, which runs in Awake the moment the factory activates
+        /// the car. Every existing caller keeps the -1 default and gets exactly the car it
+        /// always got.
+        /// </summary>
+        public int BodyModelIndex = -1;
+
+        /// <summary>
+        /// Whether the body this car is actually wearing came out of
+        /// <see cref="CarBodyCatalog"/> (true) or is the procedural body (false) — false also
+        /// when an imported body was asked for but its prefab was missing, because the car
+        /// then falls back to the procedural body rather than going out invisible. Set inside
+        /// <see cref="BuildVisualBody"/>; read by the field so it knows whether painting the
+        /// body in a team colour is painting panels or vandalising a textured model.
+        /// </summary>
+        public bool WearingImportedBody { get; private set; }
+
+        /// <summary>
         /// Signed speed along the chassis forward axis in m/s — positive nose-first, negative backwards
         /// — where <see cref="CurrentSpeedMs"/> is the magnitude. Both a stood-still car and a car pinned
         /// nose-first on a wall read 0 on the magnitude; only the sign says which way the brake key has
@@ -138,7 +158,8 @@ namespace OpenWheelRacer
         /// <c>SetActive(true)</c> below. Left true, every caller that has ever called the one-argument
         /// form gets exactly the car it always got.
         /// </param>
-        public static GameObject BuildCar(VehicleTuning tuningOrNull, bool humanControlled = true)
+        public static GameObject BuildCar(VehicleTuning tuningOrNull, bool humanControlled = true,
+            int bodyModelIndex = -1)
         {
             var go = new GameObject("Car_Primitive");
             go.SetActive(false);
@@ -150,6 +171,7 @@ namespace OpenWheelRacer
             var controller = go.AddComponent<VehicleController>();
             controller.tuning = tuningOrNull != null ? tuningOrNull : ResolveDefaultTuning();
             controller.HumanControlled = humanControlled;
+            controller.BodyModelIndex = bodyModelIndex;
             go.SetActive(true); // In play, Awake() runs here with tuning wired.
 
             // In edit mode no lifecycle message fires (and asset-import domain
@@ -333,6 +355,18 @@ namespace OpenWheelRacer
 
             var root = new GameObject(BodyRootName);
             root.transform.SetParent(transform, worldPositionStays: false);
+
+            // A car with a chosen imported body wears that instead of the lofted body:
+            // same root, same collider-free rule, and the physics never knows the
+            // difference. The imported bodies carry their own baked wheels, so no
+            // WheelVisuals are built for them — the rig wheels stay invisible rather
+            // than doubling the ones in the arches. A missing prefab falls through to
+            // the procedural body below: a fallback, never an invisible car.
+            if (BodyModelIndex >= 0 && CarBodyCatalog.TryBuild(BodyModelIndex, root.transform))
+            {
+                WearingImportedBody = true;
+                return;
+            }
 
             // The four WheelColliders go in so each visual wheel is bound to the
             // sim pose it must shadow; the builder hangs the whole car — body,

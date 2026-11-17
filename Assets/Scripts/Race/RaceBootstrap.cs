@@ -202,7 +202,11 @@ namespace OpenWheelRacer.Race
         /// </summary>
         private static VehicleController PlaceCarOnGrid(TrackBuilder track)
         {
-            GameObject chassis = VehicleController.BuildCar(null);
+            // A garage selection dresses the player's car in its chosen imported body;
+            // no selection (the editor opening the track directly, the test suite)
+            // keeps the procedural body the car has always worn.
+            int bodyIndex = CarSelection.HasSelection ? CarSelection.PlayerIndex : -1;
+            GameObject chassis = VehicleController.BuildCar(null, true, bodyIndex);
             Pose spawn = track.Spawn;
 
             chassis.transform.SetPositionAndRotation(spawn.position, spawn.rotation);

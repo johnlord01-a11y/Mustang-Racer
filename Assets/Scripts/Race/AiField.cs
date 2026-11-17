@@ -130,10 +130,20 @@ namespace OpenWheelRacer.Race
 
                 Pose pose = GridPose(playerDistance, lane, i + 1, placed);
 
+                // When the player picked cars in the garage, this opponent wears its
+                // assigned imported body instead of the painted procedural one: one of
+                // the three distinct cars the selection dealt it out of the five the
+                // player did not take.
+                int bodyIndex = -1;
+                if (CarSelection.HasSelection)
+                {
+                    CarSelection.TryGetAiBodyIndex(i, out bodyIndex);
+                }
+
                 // The runtime default tuning, so nobody in the field is faster than anybody for a
                 // reason the garage did not decide, and humanControlled false, which is what keeps
                 // three of them off the player's keyboard and off the player's reset key.
-                GameObject chassis = VehicleController.BuildCar(null, humanControlled: false);
+                GameObject chassis = VehicleController.BuildCar(null, humanControlled: false, bodyIndex);
                 chassis.name = name;
 
                 VehicleController car = chassis.GetComponent<VehicleController>();
@@ -145,8 +155,16 @@ namespace OpenWheelRacer.Race
                     return drivers;
                 }
 
-                Material material;
-                PaintBody(chassis, color, shader, name, out material);
+                // An imported body keeps its own modelled colours: PaintBody would lay
+                // the flat team material over every textured panel it found. The driver
+                // still gets its field colour for the HUD and minimap — only the paint
+                // is skipped, and the material stays null exactly as it does when there
+                // is no shader to paint with.
+                Material material = null;
+                if (!car.WearingImportedBody)
+                {
+                    PaintBody(chassis, color, shader, name, out material);
+                }
                 Place(chassis, car, pose);
                 car.ArmSpawnPoint();
 
