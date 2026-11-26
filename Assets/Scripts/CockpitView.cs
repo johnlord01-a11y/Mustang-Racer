@@ -40,6 +40,25 @@ namespace OpenWheelRacer
         /// through/beside the rim opening).</summary>
         public static readonly Vector3 EyeLocal = new Vector3(-0.10f, 1.09f, -0.57f);
 
+        /// <summary>Per-body eye-height trim in metres, added to
+        /// <see cref="EyeLocal"/>.y for the body the bound car wears
+        /// (<see cref="VehicleController.BodyModelIndex"/>, a
+        /// <see cref="CarBodyCatalog"/> index); unlisted bodies keep the
+        /// shared eye height. Owner test drive, Nov 25 2026: in the 1965
+        /// convertible (index 1) the shared eye sits so high that the body's
+        /// sun visors hang across the forward view, so its eye drops to look
+        /// under them; the 2017 (index 0) eye rides slightly higher for a
+        /// better view over its dash.</summary>
+        public static float EyeHeightOffsetFor(int bodyModelIndex)
+        {
+            switch (bodyModelIndex)
+            {
+                case 0: return 0.04f;   // Car_2017: a little higher
+                case 1: return -0.12f;  // Car_1965: lower, under the visors
+                default: return 0f;
+            }
+        }
+
         /// <summary>Head-down GT pose (90-degree VERTICAL field, half-angle
         /// 45 degrees): pitch 27.5 puts the frame centre 27.5 degrees below
         /// the horizon (horizon at v +0.61, road + sky in shot), the dash
@@ -182,8 +201,10 @@ namespace OpenWheelRacer
             if (CockpitActive)
             {
                 Transform t = _car.transform;
+                Vector3 eye = EyeLocal;
+                eye.y += EyeHeightOffsetFor(_car.BodyModelIndex);
                 transform.SetPositionAndRotation(
-                    t.TransformPoint(EyeLocal),
+                    t.TransformPoint(eye),
                     t.rotation * Quaternion.Euler(EyePitchDown, 0f, 0f));
             }
         }
