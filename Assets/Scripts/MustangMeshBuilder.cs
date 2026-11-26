@@ -227,6 +227,106 @@ namespace OpenWheelRacer
             return glass == null ? null : glass.GetComponentsInChildren<Renderer>(true);
         }
 
+        /// <summary>
+        /// How <see cref="CockpitView"/> hides the body shell's OWN steering
+        /// wheel while the cockpit rig is up: the rig wheel is the one that
+        /// turns with the car, so a body that brings its own wheel shows the
+        /// driver two. Two shapes occur in the catalog: a parted body (the
+        /// 2017) whose wheel is a set of <c>sw_*</c> parts with renderers of
+        /// their own, and a joined body (1968, 1993) whose wheel is baked
+        /// into one material slot of the single joined mesh, blanked with
+        /// <see cref="HiddenMat"/> for exactly as long as the cockpit is up
+        /// and restored for the chase cameras.
+        /// </summary>
+        public sealed class OwnWheelHide
+        {
+            /// <summary>Whole renderers to switch off (parted bodies).</summary>
+            public Renderer[] Renderers;
+            /// <summary>Joined-body renderer whose wheel slots get blanked.</summary>
+            public Renderer SlotRenderer;
+            /// <summary>Material slots on <see cref="SlotRenderer"/> that draw the wheel.</summary>
+            public int[] Slots;
+            public bool Any => (Renderers != null && Renderers.Length > 0) || SlotRenderer != null;
+        }
+
+        /// <summary>
+        /// The joined catalog bodies whose baked-in steering wheel is known
+        /// to sit alone in one material slot: (submesh count, slot, the
+        /// slot's material name). Editor-measured against the imported
+        /// meshes; BOTH the count and the material name must still match at
+        /// runtime or nothing is hidden, so a re-import can only ever fall
+        /// back to showing the wheel, never blank the wrong geometry. The
+        /// 1965's wheel is merged into its main submesh with the body and
+        /// interior, so it has no entry — it cannot be hidden this way.
+        /// </summary>
+        private static readonly (int Submeshes, int Slot, string Material)[] JoinedWheelSlots =
+        {
+            (17, 15, "Material_016"),       // 1968 GT Convertible
+            (71, 28, "Interiorlod111Mtl"),  // 1993 GT Foxbody
+        };
+
+        /// <summary>
+        /// Finds the body shell's own steering wheel under
+        /// <paramref name="carRoot"/> (see <see cref="OwnWheelHide"/>), or
+        /// null when the body brings no wheel of its own — the procedural
+        /// body, the 1970 and the S197 have none, and the 1965's is merged
+        /// into its body mesh where no slot can reach it.
+        /// </summary>
+        public static OwnWheelHide FindOwnSteeringWheel(Transform carRoot)
+        {
+            if (carRoot == null) return null;
+            var hide = new OwnWheelHide();
+            var parts = new List<Renderer>();
+            foreach (Transform node in carRoot.GetComponentsInChildren<Transform>(true))
+            {
+                if (node.name.StartsWith("sw_", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    Renderer part = node.GetComponent<Renderer>();
+                    if (part != null) parts.Add(part);
+                }
+            }
+            if (parts.Count > 0) hide.Renderers = parts.ToArray();
+
+            foreach (MeshRenderer renderer in carRoot.GetComponentsInChildren<MeshRenderer>(true))
+            {
+                MeshFilter filter = renderer.GetComponent<MeshFilter>();
+                Mesh mesh = filter == null ? null : filter.sharedMesh;
+                if (mesh == null || mesh.name != "car") continue;
+                Material[] mats = renderer.sharedMaterials;
+                foreach ((int submeshes, int slot, string material) in JoinedWheelSlots)
+                {
+                    if (mesh.subMeshCount != submeshes) continue;
+                    if (slot >= mats.Length) continue;
+                    if (mats[slot] == null || mats[slot].name != material) continue;
+                    hide.SlotRenderer = renderer;
+                    hide.Slots = new[] { slot };
+                }
+            }
+            return hide.Any ? hide : null;
+        }
+
+        private static Material _hidden;
+
+        /// <summary>
+        /// A material that draws nothing: the shipped
+        /// <c>Resources/CockpitHidden</c> asset, whose shader's only pass
+        /// masks off all colour and depth writes. Swapped into a joined
+        /// body's steering-wheel slot while the cockpit rig is up (see
+        /// <see cref="FindOwnSteeringWheel"/>); the mesh itself is never
+        /// touched and the original material goes back for the chase cam.
+        /// It has to be a shipped asset with its own shader: a material
+        /// created at runtime from the Standard shader cannot be made
+        /// invisible in a player build — the blend and colour-mask state
+        /// such a recipe relies on silently no-ops there and the geometry
+        /// renders opaque black instead (verified in captures).
+        /// </summary>
+        public static Material HiddenMat()
+        {
+            if (_hidden == null)
+                _hidden = Resources.Load<Material>("CockpitHidden");
+            return _hidden;
+        }
+
         static Transform FindGroupRecursive(Transform node, string name)
         {
             if (node == null) return null;

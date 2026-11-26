@@ -67,6 +67,9 @@ namespace OpenWheelRacer
         private Camera _camera;
         private Transform _rig, _wheel;
         private Renderer[] _ownGlass;
+        private MustangMeshBuilder.OwnWheelHide _ownWheel;
+        private bool _ownWheelResolved;
+        private Material[] _ownWheelSlotsOriginal;
         private float _defaultNear, _defaultFov;
 
         public void Bind(VehicleController car, ChaseCamera chase)
@@ -97,6 +100,7 @@ namespace OpenWheelRacer
                 _camera.fieldOfView = on ? CockpitFieldOfView : _defaultFov;
             }
             SetOwnGlassVisible(!on);
+            SetOwnWheelVisible(!on);
         }
 
         /// <summary>
@@ -114,6 +118,50 @@ namespace OpenWheelRacer
             if (_ownGlass == null) return;
             foreach (Renderer glass in _ownGlass)
                 if (glass != null) glass.enabled = visible;
+        }
+
+        /// <summary>
+        /// Hides the body shell's own steering wheel while seated, for the
+        /// same reason as the windscreen: the rig wheel in front of the
+        /// driver is the functional one (it turns with the car's steer
+        /// angle), so a body that brings its own — the imported shells do —
+        /// would show two. Chase view restores the body's wheel, which is
+        /// the only one the outside cameras ever see. AI cars are untouched —
+        /// this only ever walks the bound player's car.
+        /// </summary>
+        private void SetOwnWheelVisible(bool visible)
+        {
+            if (_car == null) return;
+            if (!_ownWheelResolved)
+            {
+                _ownWheel = MustangMeshBuilder.FindOwnSteeringWheel(_car.transform);
+                _ownWheelResolved = true;
+            }
+            if (_ownWheel == null) return;
+            if (_ownWheel.Renderers != null)
+                foreach (Renderer part in _ownWheel.Renderers)
+                    if (part != null) part.enabled = visible;
+            Renderer slotRenderer = _ownWheel.SlotRenderer;
+            if (slotRenderer == null || _ownWheel.Slots == null) return;
+            if (visible)
+            {
+                if (_ownWheelSlotsOriginal != null)
+                {
+                    slotRenderer.sharedMaterials = _ownWheelSlotsOriginal;
+                    _ownWheelSlotsOriginal = null;
+                }
+            }
+            else if (_ownWheelSlotsOriginal == null)
+            {
+                Material hidden = MustangMeshBuilder.HiddenMat();
+                if (hidden == null) return;
+                Material[] mats = slotRenderer.sharedMaterials;
+                _ownWheelSlotsOriginal = mats;
+                Material[] blanked = (Material[])mats.Clone();
+                foreach (int slot in _ownWheel.Slots)
+                    if (slot >= 0 && slot < blanked.Length) blanked[slot] = hidden;
+                slotRenderer.sharedMaterials = blanked;
+            }
         }
 
         public void Toggle() => SetCockpit(!CockpitActive);
